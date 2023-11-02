@@ -1,0 +1,26 @@
+{
+  "name": "orange-proxy",
+  "version": "1.0.0",
+  "description": "An anti-spam reverse proxy for Nostr relays",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnnyasantoss/satshack-orangeproxy.git"
+  },
+  "keywords": [
+    "nostr",
+    "proxy",
+    "spam",
+    "bitcoin",
+    "collateral"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/johnnyasantoss/satshack-orangeproxy/issues"
+  },
+  "homepage": "https://github.com/johnnyasantoss/satshack-orangeproxy#readme"
+}
