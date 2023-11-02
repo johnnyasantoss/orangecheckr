@@ -3,6 +3,7 @@ const { Server: WebSocketServer } = WebSocket;
 const express = require("express");
 const cors = require("cors");
 const { v4: uuidV4 } = require("uuid");
+require('dotenv').config();
 
 const app = express();
 
