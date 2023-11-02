@@ -4,6 +4,7 @@
   "description": "An anti-spam reverse proxy for Nostr relays",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -22,5 +23,13 @@
   "bugs": {
     "url": "https://github.com/johnnyasantoss/satshack-orangeproxy/issues"
   },
-  "homepage": "https://github.com/johnnyasantoss/satshack-orangeproxy#readme"
+  "homepage": "https://github.com/johnnyasantoss/satshack-orangeproxy#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "https-proxy-agent": "^7.0.2",
+    "nostr-tools": "^1.17.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2"
+  }
 }
