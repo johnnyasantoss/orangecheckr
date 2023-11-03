@@ -10,12 +10,17 @@ const reports = (app) => {
     const walletsDetails = [];
 
     for (const wallet of wallets) {
-      const details = await getWalletDetails();
+      const details = await getWalletDetails(wallet.id, wallet.adminkey);
 
       walletsDetails.push(details);
     }
 
-    return res.json({ report: true }).status(200);
+    const totalCollateral = walletsDetails.reduce(
+      (sumBalance, walletDetail) => (sumBalance += walletDetail.balance),
+      0
+    );
+
+    return res.json({ totalCollateral }).status(200);
   });
 };
 
