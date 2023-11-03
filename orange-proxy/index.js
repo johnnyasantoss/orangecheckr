@@ -4,6 +4,8 @@ const {
   collateralRequired,
   invoiceExpirySecs,
   authTimeoutSecs,
+  proxyUrl,
+  relayUrl,
 } = require("./config");
 
 const WebSocket = require("ws");
@@ -16,9 +18,6 @@ const Bot = require("./bot");
 const reports = require("./reports");
 const { getBalanceInSats } = require("./lnbits");
 
-const proxyUrl = new URL(process.env.PROXY_URI);
-const relayUrl = process.env.RELAY_URI;
-
 const clients = {};
 
 const bot = new Bot();
@@ -28,9 +27,18 @@ const app = express();
 
 app.use(cors({ origin: "*" }));
 
+app.use((req, res, next) => {
+  console.debug(`HTTP: ${req.method} ${req.originalUrl}`);
+  return next();
+});
+
 reports(app);
 
-app.use((req, res, next) => res.json({ notFound: true }).status(404));
+app.post("/webhooks/lnbits/paid/:pubKey", (req, res) => {
+  const pubKey = req.params.pubKey;
+  process.emit(`${pubKey}.paid`, req.body);
+  return res.status(200).json({ success: true });
+});
 
 const server = app.listen(1337, () => {
   console.log("Aberto na porta 1337");
@@ -45,7 +53,7 @@ let id = 1;
 server.on("upgrade", function upgrade(req, socket, head) {
   req.id = id++;
 
-  console.debug("Recebeu upgrade do WS - passando para o relay", req.url);
+  console.debug("Recebeu upgrade do WS #%s", req.id);
   const wss = new WebSocketServer({ noServer: true });
   const relay = new WebSocket(relayUrl);
   /** @type {WebSocket | undefined} */
@@ -132,7 +140,6 @@ server.on("upgrade", function upgrade(req, socket, head) {
                 `Falhou ao enviar a DM para a conexão #${req.id}`,
                 e
               );
-              closeConnection(clientObj);
               return false;
             }
           );
@@ -237,3 +244,13 @@ function drainMessageQueue(clientObj) {
     ws.send(data);
   }
 }
+
+app.use((req, res, next) => {
+  return Promise.resolve()
+    .then(() => next())
+    .catch((err) => {
+      console.error(`HTTP ERROR: `, err);
+    });
+});
+
+app.use((req, res, next) => res.json({ notFound: true }).status(404));
