@@ -145,7 +145,6 @@ server.on("upgrade", function upgrade(req, socket, head) {
           ws.funded = true;
 
           console.debug(`Usuário autenticado e com colateral #${req.id}`);
-          await bot.notifyCollateralPosted(event.pubkey);
           return;
         }
 
@@ -289,3 +288,7 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => res.json({ notFound: true }).status(404));
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error(`ERROR: ${reason} ${promise}`);
+});

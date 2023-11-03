@@ -1,7 +1,6 @@
 const axios = require("axios");
 const { policyUrl, checkSpamUrl } = require("../config");
 const banUserInRelay = require("../helpers/banUserInRelay");
-const Bot = require("../bot");
 let bot;
 
 /**
@@ -12,9 +11,10 @@ module.exports = async (job) => {
     data: { note, pubkey, eventId },
   } = job;
 
-  bot = bot || new Bot();
-
   try {
+    const Bot = require("../bot");
+    const bot = new Bot();
+
     const spamCheck = await axios
       .post(checkSpamUrl, {
         policy_url: policyUrl,

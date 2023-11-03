@@ -3,10 +3,15 @@ const { resolve } = require("path");
 
 const connection = { host: "localhost", port: 6379 };
 
-function initQueue(name, jobOptions) {
+function initQueue(
+  name,
+  jobOptions,
+  workerOptions = {
+    concurrency: 1,
+  }
+) {
   const queue = new Queue(name, {
     defaultJobOptions: jobOptions,
-
     connection,
   });
 
@@ -19,7 +24,7 @@ function initQueue(name, jobOptions) {
   const workerFile = resolve(__dirname, "workers", `${name}.js`);
 
   const worker = new Worker(name, require(workerFile), {
-    concurrency: 1,
+    ...workerOptions,
     connection,
   });
 
@@ -33,16 +38,20 @@ function initQueue(name, jobOptions) {
 }
 
 const { queue: invoicesProcessingQueue, worker: invoicesProcessingWorker } =
-  initQueue("invoices_processing", {
-    attempts: 100,
-    delay: 10000,
-    removeOnComplete: 1000,
-    removeOnFail: false,
-    backoff: {
-      type: "exponential",
+  initQueue(
+    "invoices_processing",
+    {
+      attempts: 100,
       delay: 1000,
+      removeOnComplete: 1000,
+      removeOnFail: false,
+      backoff: {
+        type: "fixed",
+        delay: 1000,
+      },
     },
-  });
+    { concurrency: 10 }
+  );
 
 function processInvoice(pubKey, invoice) {
   return invoicesProcessingQueue.add("invoices_processing", invoice, {
@@ -60,7 +69,8 @@ const { queue: spamReportingQueue, worker: spamReportingWorker } = initQueue(
       type: "exponential",
       delay: 5000,
     },
-  }
+  },
+  { concurrency: 10 }
 );
 
 function processSpam(pubkey, note, eventId) {

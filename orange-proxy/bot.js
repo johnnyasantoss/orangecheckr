@@ -136,7 +136,7 @@ class Bot {
       const invoice = await fundCollateral(event.pubkey);
       await this.askForCollateral(event.pubkey, invoice);
     } else if (message.startsWith("/withdrawCollateral")) {
-      let invoice = message.substring("/withdrawCollateral ".length)
+      let invoice = message.substring("/withdrawCollateral ".length);
       await this.withdrawalCollateral(event.pubkey, invoice);
     } else if (message === "/seize") {
       // TODO: Remover

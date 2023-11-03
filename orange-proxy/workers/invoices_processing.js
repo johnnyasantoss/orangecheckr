@@ -1,5 +1,4 @@
 const { isPast } = require("date-fns");
-const { getInvoice } = require("../lnbits");
 
 /**
  * @param {import('bullmq').SandboxedJob} job
@@ -10,15 +9,25 @@ module.exports = async (job) => {
     id: pubKey,
   } = job;
 
-  const invoiceInfo = await getInvoice(paymentHash, apiKey);
+  try {
+    const { getInvoice } = require("../lnbits");
+    const Bot = require("../bot");
+    const bot = new Bot();
 
-  if (isPast(invoiceInfo.details.expiry)) {
-    throw new Error("Expired");
-  }
+    const invoiceInfo = await getInvoice(paymentHash, apiKey);
 
-  if (invoiceInfo.paid) {
-    process.emit(`${pubKey}.paid`, invoiceInfo);
-  } else {
-    throw new Error("Not paid yet");
+    if (isPast(invoiceInfo.details.expiry)) {
+      return;
+    }
+
+    if (invoiceInfo.paid) {
+      await bot.notifyCollateralPosted(pubKey);
+      process.emit(`${pubKey}.paid`, invoiceInfo);
+    } else {
+      throw new Error("Not paid yet");
+    }
+  } catch (error) {
+    console.error("Failed to process invoice", error);
+    throw error;
   }
 };
