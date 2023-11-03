@@ -45,17 +45,30 @@ async function getInvoice(paymentHash, apiKey) {
 // Delete wallet
 async function deleteWallet(walletId) {
   const response = await api.delete(`/usermanager/api/v1/wallets/${walletId}`);
+
   return response.data;
 }
 
 // Get wallet
 async function getWallet(pubkey) {
-  const response = await api.get(`/usermanager/api/v1/wallets`);
+  const wallets = await getWallets();
 
   // Filter response where data.name == pubkey
-  const wallet = response.data.find((wallet) => wallet.name === pubkey);
+  const wallet = wallets.find((wallet) => wallet.name === pubkey);
 
   return wallet;
+}
+
+async function getWallets() {
+  const response = await api.get(`/usermanager/api/v1/wallets`);
+
+  return response.data;
+}
+
+async function getWalletDetails(pubKey) {
+  const response = await api.get(`/usermanager/api/v1/wallets/${pubKey}`);
+
+  return response.data;
 }
 
 // Create wallet
@@ -157,4 +170,5 @@ module.exports = {
   fundCollateral,
   seizeWallet,
   getInvoice,
+  getWalletDetails,
 };
