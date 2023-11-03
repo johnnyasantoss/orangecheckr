@@ -17,7 +17,9 @@ const invoicesProcessingQueue = new Queue("invoices_processing", {
 
   connection,
 });
+
 const workerFile = resolve(__dirname, "workers", "invoices_processing.js");
+
 const invoicesProcessingWorker = new Worker("invoices_processing", workerFile, {
   concurrency: 1,
   connection,
@@ -28,6 +30,28 @@ function processInvoice(pubKey, invoice) {
     jobId: pubKey,
   });
 }
+
+const spamReportingQueue = new Queue("spam_reporting", {
+  defaultJobOptions: {
+    attempts: 100,
+    delay: 10000,
+    removeOnComplete: 1000,
+    removeOnFail: false,
+    backoff: {
+      type: "exponential",
+      delay: 1000,
+    },
+  },
+
+  connection,
+});
+
+const spamWorkerFile = resolve(__dirname, "workers", "spam_reporting.js");
+
+const spamReportingWorker = new Worker("invoices_processing", workerFile, {
+  concurrency: 1,
+  connection,
+});
 
 module.exports = {
   invoicesProcessingQueue,

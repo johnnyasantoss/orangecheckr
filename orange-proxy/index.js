@@ -5,7 +5,7 @@ const {
   invoiceExpirySecs,
   authTimeoutSecs,
   proxyUrl,
-  relayUrl,
+  relayUri,
 } = require("./config");
 
 const WebSocket = require("ws");
@@ -55,7 +55,7 @@ server.on("upgrade", function upgrade(req, socket, head) {
 
   console.debug("Recebeu upgrade do WS #%s", req.id);
   const wss = new WebSocketServer({ noServer: true });
-  const relay = new WebSocket(relayUrl);
+  const relay = new WebSocket(relayUri);
   /** @type {WebSocket | undefined} */
   let ws;
   const clientObj = (clients[req.id] = clients[req.id] || {

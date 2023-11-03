@@ -1,37 +1,31 @@
 const axios = require("axios");
 const { processInvoice } = require("./queue");
-const { proxyUrl } = require("./config");
+const { proxyUrl, invoiceExpirySecs } = require("./config");
 const { URL } = require("url");
-
-// Manager - LNbits user in the URL
-const USER = process.env.USER_MANAGER;
-
-// Admin
-const ADMIN_KEY = process.env.ADMIN_KEY;
-const LNBITS_URL = process.env.LNBITS_URL;
-const COLLATERAL_REQUIRED = process.env.COLLATERAL_REQUIRED;
-
-// User
-const RELAY_ID = process.env.RELAY_ID;
-
-// Relay Wallet
-const RELAY_INVOICE_KEY = process.env.RELAY_INVOICE_KEY;
+const {
+  managerUser,
+  adminKey,
+  lnbitsUrl,
+  collateralRequired,
+  relayId,
+  relayInvoiceKey,
+} = require("./config");
 
 // Create an Axios instance
 /** @type {axios.Axios} */
 const api = axios.create({
-  baseURL: LNBITS_URL,
+  baseURL: lnbitsUrl,
   timeout: 10000, // Set your timeout value (in milliseconds)
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "X-Api-Key": ADMIN_KEY,
+    "X-Api-Key": adminKey,
   },
 });
 
 // Get user
 async function getUser() {
-  const response = await api.get(`/usermanager/api/v1/users/${USER}`);
+  const response = await api.get(`/usermanager/api/v1/users/${managerUser}`);
   return response.data;
 }
 
@@ -90,9 +84,9 @@ async function getBalanceInSats(pubKey) {
 // Create wallet
 async function createWallet(pubKey) {
   const userData = {
-    admin_id: USER,
+    admin_id: managerUser,
     wallet_name: pubKey,
-    user_id: RELAY_ID,
+    user_id: relayId,
   };
 
   const response = await api.post("/usermanager/api/v1/wallets", userData);
@@ -114,16 +108,23 @@ async function seizeWallet(pubKey) {
 
   // Create seizure invoice
   const seizure_invoice = await createInvoice(
-    COLLATERAL_REQUIRED,
+    collateralRequired,
     `Seizure of wallet ${pubKey}`,
     true,
-    RELAY_INVOICE_KEY,
+    relayInvoiceKey,
     pubKey
   );
   const invoice = seizure_invoice.payment_request;
 
   // Pay seizure invoice
-  const seizure_payment = await api.post(
+  const seizure_payment = await newFunction(invoice, client_adminkey);
+
+  console.debug(`Confiscado saldo do ${pubKey}`, seizure_payment.data);
+  return true;
+}
+
+function newFunction(invoice, client_adminkey) {
+  return api.post(
     `/api/v1/payments`,
     {
       out: true,
@@ -135,13 +136,12 @@ async function seizeWallet(pubKey) {
       },
     }
   );
-
-  console.debug(`Confiscado saldo do ${pubKey}`, seizure_payment.data);
-  return true;
 }
 
 // Withdraw collateral
-
+async function withdrawCollateral(pubKey, lnurl) {
+  const seize = await seizeWallet(pubKey);
+}
 
 async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
   const webhookUrl = new URL(
@@ -157,7 +157,7 @@ async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
       amount,
       memo,
       internal,
-      expiry: process.env.INVOICE_EXPIRY_SECS,
+      expiry: invoiceExpirySecs,
       webhook: internal ? undefined : webhookUrl.toString(),
     },
     {
@@ -181,8 +181,10 @@ async function fundCollateral(pubKey) {
     walletInfo = await createWallet(pubKey);
   }
 
+  const balance = await getBalanceInSats(pubKey);
+
   const { payment_request } = await createInvoice(
-    COLLATERAL_REQUIRED,
+    collateralRequired - balance,
     `Funding collateral for ${pubKey}`,
     false,
     walletInfo.inkey,

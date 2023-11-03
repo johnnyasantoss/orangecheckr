@@ -1,19 +1,14 @@
-const {
-  relayInit,
-  generatePrivateKey,
-  getPublicKey,
-  nip04,
-  finishEvent,
-} = require("nostr-tools");
+const { relayInit, getPublicKey, nip04, finishEvent } = require("nostr-tools");
 const { fundCollateral, seizeWallet } = require("./lnbits");
-
-const relayUri = process.env.RELAY_URI;
-const postingPolicyUrl = process.env.POSTING_POLICY_URL;
-const collateralRequired = process.env.COLLATERAL_REQUIRED;
-const botName = process.env.BOT_NAME || "Orange Checkr Bot";
-const botAbout =
-  process.env.BOT_ABOUT || "I'm a bot that helps you use Orange Checkr.";
-const botPicture = process.env.BOT_PICTURE || "https://i.imgur.com/MBwgeHK.png";
+const {
+  relayUri,
+  postingPolicyUrl,
+  collateralRequired,
+  botName,
+  botAbout,
+  botPicture,
+  botPrivateKey,
+} = require("./config");
 
 class Bot {
   constructor() {
@@ -27,7 +22,7 @@ class Bot {
       throw new Error("COLLATERAL_REQUIRED environment variable is required");
     }
     this.relay = relayInit(relayUri);
-    this.privateKey = process.env.BOT_PRIVATE_KEY || generatePrivateKey();
+    this.privateKey = botPrivateKey;
     this.publicKey = getPublicKey(this.privateKey);
   }
 
