@@ -176,6 +176,7 @@ async function fundCollateral(pubKey) {
 module.exports = {
   fundCollateral,
   seizeWallet,
+  getWallets,
   getInvoice,
   getWalletDetails,
 };
