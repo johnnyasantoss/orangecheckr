@@ -2,12 +2,17 @@ const {
   relayInit,
   generatePrivateKey,
   getPublicKey,
-  nip44,
+  nip04,
+  finishEvent,
 } = require("nostr-tools");
 
 const relayUri = process.env.RELAY_URI;
 const postingPolicyUrl = process.env.POSTING_POLICY_URL;
 const collateralRequired = process.env.COLLATERAL_REQUIRED;
+const botName = process.env.BOT_NAME || "Orange Checkr Bot";
+const botAbout =
+  process.env.BOT_ABOUT || "I'm a bot that helps you use Orange Checkr.";
+const botPicture = process.env.BOT_PICTURE || "https://i.imgur.com/MBwgeHK.png";
 
 class Bot {
   constructor() {
@@ -27,73 +32,127 @@ class Bot {
 
   async connect() {
     await this.relay.connect();
+    await this._publishMetadata();
+    let sub = this.relay.sub([
+      {
+        kinds: [4],
+        "#p": [this.publicKey],
+        since: getNow(),
+      },
+    ]);
+    sub.on("event", (event) => {
+      this._handleEvent(event);
+    });
+    sub.on("eose", () => {
+      console.debug("Recebeu EOSE no BOT");
+      // sub.unsub();
+    });
   }
 
-  async askForCollateral(ws, pubkey, invoice) {
-    let message = `To use this relay you need to post ${collateralRequired} sats
-        as collateral. You may lose your funds if you violate our Posting Policy (${postingPolicyUrl}).\n
-        To proceed, pay the following lightning invoice:\n\n${invoice}\n\n
-        You may withdraw your collateral at any time by replying with "withdraw collateral".`;
+  async askForCollateral(pubkey, invoice) {
+    let message = `To use this relay you need to post ${collateralRequired} sats as collateral. You may lose your funds if you violate our Posting Policy (${postingPolicyUrl}).\nTo proceed, pay the following lightning invoice:\n\n${invoice}\n\nYou may withdraw your collateral at any time by replying with /withdrawCollateral.`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async notifyCollateralPosted(ws, pubkey) {
-    let message = `Collateral posted! You may now use this relay.\n
-        You may withdraw your collateral at any time by replying with "withdraw collateral".`;
+  async notifyCollateralPosted(pubkey) {
+    let message = `Collateral posted! You may now use this relay.\nYou may withdraw your collateral at any time by replying with /withdrawCollateral.`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async notifyCollateralWithdrawn(ws, pubkey) {
-    let message = `Collateral withdrawn! You may no longer use this relay.\n
-        To use this relay again, reply with "post collateral".`;
+  async notifyCollateralWithdrawn(pubkey) {
+    let message = `Collateral withdrawn! You may no longer use this relay.\nTo use this relay again, reply with /postCollateral.`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async notifyCollateralWithdrawnFailed(ws, pubkey) {
-    let message = `Collateral withdrawal failed! You need to set a valid lightning address
-        in your profile for us to pay you back. To try again, reply with "withdraw collateral"`;
+  async notifyCollateralWithdrawnFailed(pubkey) {
+    let message = `Collateral withdrawal failed! You need to set a valid lightning address in your profile for us to pay you back. To try again, reply with /withdrawCollateral`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async notifyCollateralSeized(ws, pubkey, eventId) {
-    let message = `Your collateral has been seized because nostr:${eventId} violated
-        our Posting Policy (${postingPolicyUrl}). You may no longer use this relay.\n
-        To use this relay again, reply with "post collateral".`;
+  async notifyCollateralSeized(pubkey, eventId) {
+    let message = `Your collateral has been seized because nostr:${eventId} violated our Posting Policy (${postingPolicyUrl}). You may no longer use this relay.\nTo use this relay again, reply with /postCollateral.`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async informCollateralAmount(ws, pubkey, amount) {
-    let message = `You have posted ${amount} sats as collateral.\n
-        If you want to withdraw, reply with "withdraw collateral".`;
+  async informCollateralAmount(pubkey, amount) {
+    let message = `You have posted ${amount} sats as collateral.\nIf you want to withdraw, reply with /withdrawCollateral.`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async notifyPolicyViolation(ws, pubkey, eventId) {
-    let message = `Your post nostr:${eventId} violated our Posting Policy (${postingPolicyUrl}).\n
-        This is just a warning, but we may seize your collateral next time.`;
+  async notifyPolicyViolation(pubkey, eventId) {
+    let message = `Your post nostr:${eventId} violated our Posting Policy (${postingPolicyUrl}).\nThis is just a warning, but we may seize your collateral next time.`;
 
-    this._sendMessage(ws, pubkey, message);
+    await this._sendMessage(pubkey, message);
   }
 
-  async _sendMessage(ws, pubkey, message) {
-    let key = nip44.getSharedSecret(this.privateKey, pubkey);
-    let ciphertext = nip44.encrypt(key, message);
+  async _sendMessage(pubkey, message) {
+    const ciphertext = await nip04.encrypt(this.privateKey, pubkey, message);
 
-    let event = {
-      kind: 4,
-      pubkey: this.publicKey,
-      tags: [["p", pubkey]],
-      content: ciphertext,
-    };
+    const event = finishEvent(
+      {
+        kind: 4,
+        created_at: getNow(),
+        tags: [["p", pubkey]],
+        content: ciphertext,
+      },
+      this.privateKey
+    );
 
-    ws.send(JSON.stringify(["EVENT", event]));
+    console.debug("Enviando DM", JSON.stringify(event));
+
+    await this.relay.publish(event);
+  }
+
+  async _publishMetadata() {
+    let event = finishEvent(
+      {
+        kind: 0,
+        created_at: getNow(),
+        content: JSON.stringify({
+          name: botName,
+          about: botAbout,
+          picture: botPicture,
+        }),
+        tags: [],
+      },
+      this.privateKey
+    );
+
+    await this.relay.publish(event);
+  }
+
+  async _handleEvent(event) {
+    if (this.publicKey === event.pubkey) return;
+
+    let message = await nip04.decrypt(
+      this.privateKey,
+      event.pubkey,
+      event.content
+    );
+
+    if (message === "/postCollateral") {
+      this.askForCollateral(event.pubkey, "fake-lightning-invoice");
+    } else if (message === "/withdrawCollateral") {
+      console.log("Call withdraw collateral");
+    } else {
+      this._sendMessage(
+        event.pubkey,
+        ```Sorry, I didn't understand that.
+If you want to post collateral, reply with "/postCollateral".
+If you want to withdraw collateral, reply with "/withdrawCollateral".```
+      );
+      console.log("Bot received message: ", message);
+    }
   }
 }
 
 module.exports = Bot;
+function getNow() {
+  return Math.floor(Date.now() / 1000);
+}
