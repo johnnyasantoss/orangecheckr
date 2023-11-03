@@ -234,9 +234,24 @@ function drainMessageQueue(clientObj) {
   if (!ws.authenticated) return;
 
   let data;
+  const reAddUpstream = [];
   while ((data = clientObj.queueUpstream.pop())) {
+    let event;
+
+    if (
+      !ws.funded &&
+      (event = JSON.parse(data)) &&
+      event[0] !== "REQ" &&
+      event[0] !== "CLOSE"
+    ) {
+      reAddUpstream.push(data);
+    }
+
     relay.send(data);
   }
+  clientObj.queueUpstream.push(...reAddUpstream);
+
+  if (ws.readyState !== WebSocket.OPEN) return;
   while ((data = clientObj.queueDownstream.pop())) {
     ws.send(data);
   }
