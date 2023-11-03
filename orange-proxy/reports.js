@@ -20,7 +20,9 @@ const reports = (app) => {
       0
     );
 
-    return res.json({ totalCollateral }).status(200);
+    const totalPubKeys = wallets.length;
+
+    return res.json({ totalCollateral, totalPubKeys }).status(200);
   });
 };
 
