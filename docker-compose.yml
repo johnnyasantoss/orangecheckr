@@ -7,7 +7,13 @@ services:
     volumes:
       - ./.nostr/config.toml:/usr/src/app/config.toml
       - ./.nostr/data:/usr/src/app/db
-
+  redis:
+    image: redis
+    command: redis-server --save 60 1 --loglevel debug --maxmemory-policy noeviction
+    ports:
+      - 6379:6379
+    volumes:
+      - ./.nostr/redis:/data
 
 networks:
   relay:

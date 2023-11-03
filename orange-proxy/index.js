@@ -7,7 +7,7 @@ const express = require("express");
 const cors = require("cors");
 const { v4: uuidV4 } = require("uuid");
 const { validateEvent, verifySignature } = require("nostr-tools");
-const Bot = require("./Bot");
+const Bot = require("./bot");
 
 const relayUrl = new URL(process.env.PROXY_URI);
 
@@ -109,7 +109,7 @@ server.on("upgrade", function upgrade(req, socket, head) {
         ) {
           ws.authenticated = true;
           bot
-            .askForCollateral(event.pubkey, "fake-lightning-invoice")
+            .askForCollateral(event.pubkey)
             .catch((e) => {
               console.error(
                 `Falhou ao enviar a DM para a conexão #${req.id}`,

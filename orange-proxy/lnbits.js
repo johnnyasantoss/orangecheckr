@@ -1,6 +1,5 @@
 const axios = require("axios");
-
-require("dotenv").config();
+const { processInvoice } = require("./queue");
 
 // Manager - LNbits user in the URL
 const USER = process.env.USER_MANAGER;
@@ -31,6 +30,15 @@ const api = axios.create({
 // Get user
 async function getUser() {
   const response = await api.get(`/usermanager/api/v1/users/${USER}`);
+  return response.data;
+}
+
+async function getInvoice(paymentHash, apiKey) {
+  const response = await api.get(`/api/v1/payments/${paymentHash}`, {
+    headers: {
+      "X-Api-Key": apiKey,
+    },
+  });
   return response.data;
 }
 
@@ -77,9 +85,10 @@ async function seizeWallet(pubKey) {
 
   // Create seizure invoice
   const seizure_invoice = await createInvoice(
-    COLLATERAL_REQUIRED - 3,
-    `Seizure of wallet ${pubkey}`,
+    COLLATERAL_REQUIRED,
+    `Seizure of wallet ${pubKey}`,
     true,
+    RELAY_INVOICE_KEY,
     pubKey
   );
   const invoice = seizure_invoice.payment_request;
@@ -98,11 +107,11 @@ async function seizeWallet(pubKey) {
     }
   );
 
-  console.debug(`Confiscado saldo do ${pubkey}`, seizure_payment.data);
+  console.debug(`Confiscado saldo do ${pubKey}`, seizure_payment.data);
   return true;
 }
 
-async function createInvoice(amount, memo, internal = false, apiKey) {
+async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
   const res = await api.post(
     `/api/v1/payments`,
     {
@@ -110,6 +119,7 @@ async function createInvoice(amount, memo, internal = false, apiKey) {
       amount,
       memo,
       internal,
+      expiry: process.env.INVOICE_EXPIRY_SECS,
     },
     {
       headers: {
@@ -117,6 +127,11 @@ async function createInvoice(amount, memo, internal = false, apiKey) {
       },
     }
   );
+
+  await processInvoice(pubKey, {
+    paymentHash: res.data.payment_hash,
+    apiKey: apiKey,
+  });
 
   return res.data;
 }
@@ -131,7 +146,8 @@ async function fundCollateral(pubKey) {
     COLLATERAL_REQUIRED,
     `Funding collateral for ${pubKey}`,
     false,
-    walletInfo.inkey
+    walletInfo.inkey,
+    pubKey
   );
 
   return payment_request;
@@ -140,4 +156,5 @@ async function fundCollateral(pubKey) {
 module.exports = {
   fundCollateral,
   seizeWallet,
+  getInvoice,
 };

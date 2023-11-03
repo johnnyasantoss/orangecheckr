@@ -5,6 +5,7 @@ const {
   nip04,
   finishEvent,
 } = require("nostr-tools");
+const { fundCollateral, seizeWallet } = require("./lnbits");
 
 const relayUri = process.env.RELAY_URI;
 const postingPolicyUrl = process.env.POSTING_POLICY_URL;
@@ -50,6 +51,10 @@ class Bot {
   }
 
   async askForCollateral(pubkey, invoice) {
+    if (!invoice) {
+      invoice = await fundCollateral(pubkey);
+    }
+
     let message = `To use this relay you need to post ${collateralRequired} sats as collateral. You may lose your funds if you violate our Posting Policy (${postingPolicyUrl}).\nTo proceed, pay the following lightning invoice:\n\n${invoice}\n\nYou may withdraw your collateral at any time by replying with /withdrawCollateral.`;
 
     await this._sendMessage(pubkey, message);
@@ -137,15 +142,19 @@ class Bot {
     );
 
     if (message === "/postCollateral") {
-      this.askForCollateral(event.pubkey, "fake-lightning-invoice");
+      const invoice = await fundCollateral(event.pubkey);
+      await this.askForCollateral(event.pubkey, invoice);
     } else if (message === "/withdrawCollateral") {
       console.log("Call withdraw collateral");
+    } else if (message === "/seize") {
+      // TODO: Remover
+      await seizeWallet(event.pubkey);
     } else {
       this._sendMessage(
         event.pubkey,
-        ```Sorry, I didn't understand that.
+        `Sorry, I didn't understand that.
 If you want to post collateral, reply with "/postCollateral".
-If you want to withdraw collateral, reply with "/withdrawCollateral".```
+If you want to withdraw collateral, reply with "/withdrawCollateral".`
       );
       console.log("Bot received message: ", message);
     }
