@@ -8,6 +8,7 @@ const cors = require("cors");
 const { v4: uuidV4 } = require("uuid");
 const { validateEvent, verifySignature } = require("nostr-tools");
 const Bot = require("./bot");
+const reports = require("./reports");
 
 const relayUrl = new URL(process.env.PROXY_URI);
 
@@ -21,6 +22,8 @@ const app = express();
 app.use(cors({ origin: "*" }));
 
 app.use((req, res, next) => res.json({ notFound: true }).status(404));
+
+reports(app);
 
 const server = app.listen(1337, () => {
   console.log("Aberto na porta 1337");
@@ -108,15 +111,10 @@ server.on("upgrade", function upgrade(req, socket, head) {
           relayTagUrl.host === relayUrl.host
         ) {
           ws.authenticated = true;
-          bot
-            .askForCollateral(event.pubkey)
-            .catch((e) => {
-              console.error(
-                `Falhou ao enviar a DM para a conexão #${req.id}`,
-                e
-              );
-              closeConnection(clientObj);
-            });
+          bot.askForCollateral(event.pubkey).catch((e) => {
+            console.error(`Falhou ao enviar a DM para a conexão #${req.id}`, e);
+            closeConnection(clientObj);
+          });
           console.debug(`Usuário validado na conexão #${req.id}`);
         } else {
           console.warn(`Usuário invalido na conexão #${req.id}`);
