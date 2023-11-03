@@ -39,10 +39,6 @@ class Bot {
     sub.on("event", (event) => {
       this._handleEvent(event);
     });
-    sub.on("eose", () => {
-      console.debug("Recebeu EOSE no BOT");
-      // sub.unsub();
-    });
   }
 
   async askForCollateral(pubkey, invoice) {

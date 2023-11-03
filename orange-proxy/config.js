@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { URL } = require("url");
 
+/** @return {never} */
 function missingEnv(key) {
   throw new Error(`Missing environment variable: ${key}`);
 }
@@ -29,8 +30,9 @@ module.exports = {
   managerUser: process.env.USER_MANAGER || missingEnv("USER_MANAGER"),
   adminKey: process.env.ADMIN_KEY || missingEnv("ADMIN_KEY"),
   lnbitsUrl: process.env.LNBITS_URL || missingEnv("LNBITS_URL"),
-  collateralRequired:
-    process.env.COLLATERAL_REQUIRED || missingEnv("COLLATERAL_REQUIRED"),
+  collateralRequired: Number(
+    process.env.COLLATERAL_REQUIRED || missingEnv("COLLATERAL_REQUIRED")
+  ),
   relayId: process.env.RELAY_ID || missingEnv("RELAY_ID"),
   relayInvoiceKey:
     process.env.RELAY_INVOICE_KEY || missingEnv("RELAY_INVOICE_KEY"),

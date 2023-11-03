@@ -44,8 +44,22 @@ const server = app.listen(1337, () => {
   console.log("Aberto na porta 1337");
 });
 
-function authenticate(req) {
-  //TODO:
+function validateAuthEvent(event, ws) {
+  const challengeTag = event.tags.find((tag) => tag[0] === "challenge");
+  const relayTag = event.tags.find((tag) => tag[0] === "relay");
+  let relayTagUrl;
+
+  return (
+    validateEvent(event) &&
+    verifySignature(event) &&
+    challengeTag &&
+    Array.isArray(challengeTag) &&
+    challengeTag[1] === ws.authChallenge &&
+    relayTag &&
+    Array.isArray(relayTag) &&
+    (relayTagUrl = new URL(relayTag[1])) &&
+    relayTagUrl.host === proxyUrl.hostname
+  );
 }
 
 let id = 1;
@@ -106,72 +120,55 @@ server.on("upgrade", function upgrade(req, socket, head) {
         (msg = JSON.parse(data)) &&
         msg[0] === "AUTH"
       ) {
-        let event = msg[1];
+        const event = msg[1];
 
         console.debug(`Recebeu auth da conexão #${req.id}`, event);
-        let challengeTag = event.tags.find((tag) => tag[0] === "challenge");
-        let relayTag = event.tags.find((tag) => tag[0] === "relay");
-        let relayTagUrl;
-        if (
-          validateEvent(event) &&
-          verifySignature(event) &&
-          challengeTag &&
-          Array.isArray(challengeTag) &&
-          challengeTag[1] === ws.authChallenge &&
-          relayTag &&
-          Array.isArray(relayTag) &&
-          (relayTagUrl = new URL(relayTag[1])) &&
-          relayTagUrl.host === proxyUrl.hostname
-        ) {
-          ws.authenticated = true;
-          console.debug(`Usuário autenticado na conexão #${req.id}`);
 
+        if (!validateAuthEvent(event, ws)) {
+          console.warn(`Usuário invalido na conexão #${req.id}`);
+          return closeConnection(clientObj);
+        }
+
+        ws.authenticated = true;
+        console.debug(`Usuário autenticado na conexão #${req.id}`);
+
+        const balance = await getBalanceInSats(event.pubkey);
+        if (balance && balance >= collateralRequired) {
+          ws.funded = true;
+
+          console.debug(`Usuário autenticado e com colateral #${req.id}`);
+          return;
+        }
+
+        const didSendDM = await bot.askForCollateral(event.pubkey).then(
+          () => true,
+          (e) => {
+            console.error(`Falhou ao enviar a DM para a conexão #${req.id}`, e);
+            return false;
+          }
+        );
+
+        if (!didSendDM) {
+          return closeConnection(clientObj);
+        }
+
+        const timeout = setTimeout(async () => {
+          if (ws.funded) return;
           const balance = await getBalanceInSats(event.pubkey);
+
           if (balance && balance >= collateralRequired) {
             ws.funded = true;
-
-            console.debug(`Usuário autenticado e com colateral #${req.id}`);
             return;
           }
-          const didSendMsg = await bot.askForCollateral(event.pubkey).then(
-            () => true,
-            (e) => {
-              console.error(
-                `Falhou ao enviar a DM para a conexão #${req.id}`,
-                e
-              );
-              return false;
-            }
-          );
 
-          if (didSendMsg) {
-            const timeout = setTimeout(async () => {
-              if (ws.funded) return;
-              const balance = await getBalanceInSats(event.pubkey);
-
-              if (balance && balance >= collateralRequired) {
-                ws.funded = true;
-                return;
-              }
-
-              closeConnection(clientObj);
-            }, invoiceExpirySecs * 1000);
-
-            process.once(`${event.pubkey}.paid`, (invoiceInfo) => {
-              console.debug(
-                `Recebeu pagamento do ${event.pubkey}`,
-                invoiceInfo
-              );
-              ws.funded = true;
-              clearTimeout(timeout);
-            });
-          } else {
-            closeConnection(clientObj);
-          }
-        } else {
-          console.warn(`Usuário invalido na conexão #${req.id}`);
           closeConnection(clientObj);
-        }
+        }, invoiceExpirySecs * 1000);
+
+        process.once(`${event.pubkey}.paid`, (invoiceInfo) => {
+          console.debug(`Recebeu pagamento do ${event.pubkey}`, invoiceInfo);
+          ws.funded = true;
+          clearTimeout(timeout);
+        });
 
         return;
       }
