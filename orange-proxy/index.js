@@ -6,6 +6,7 @@ const {
   authTimeoutSecs,
   proxyUrl,
   relayUri,
+  filterNipKind,
 } = require("./config");
 
 const WebSocket = require("ws");
@@ -17,6 +18,7 @@ const { validateEvent, verifySignature } = require("nostr-tools");
 const Bot = require("./bot");
 const reports = require("./reports");
 const { getBalanceInSats } = require("./lnbits");
+const { processSpam } = require("./queue");
 
 const clients = {};
 
@@ -124,9 +126,15 @@ server.on("upgrade", function upgrade(req, socket, head) {
 
         console.debug(`Recebeu auth da conexão #${req.id}`, event);
 
-        if (!validateAuthEvent(event, ws)) {
+        if (typeof event !== "object" || !validateAuthEvent(event, ws)) {
           console.warn(`Usuário invalido na conexão #${req.id}`);
           return closeConnection(clientObj);
+        }
+
+        if (event.pubkey === bot.publicKey) {
+          ws.authenticated = true;
+          ws.funded = true;
+          return;
         }
 
         ws.authenticated = true;
@@ -137,6 +145,7 @@ server.on("upgrade", function upgrade(req, socket, head) {
           ws.funded = true;
 
           console.debug(`Usuário autenticado e com colateral #${req.id}`);
+          await bot.notifyCollateralPosted(event.pubkey);
           return;
         }
 
@@ -234,22 +243,36 @@ function drainMessageQueue(clientObj) {
   if (!ws.authenticated) return;
 
   let data;
-  const reAddUpstream = [];
-  while ((data = clientObj.queueUpstream.pop())) {
-    let event;
+  if (relay.readyState === WebSocket.OPEN) {
+    const reAddUpstream = [];
+    while ((data = clientObj.queueUpstream.pop())) {
+      let event;
 
-    if (
-      !ws.funded &&
-      (event = JSON.parse(data)) &&
-      event[0] !== "REQ" &&
-      event[0] !== "CLOSE"
-    ) {
-      reAddUpstream.push(data);
+      if (
+        !ws.funded &&
+        (event = JSON.parse(data)) &&
+        event[0] !== "REQ" &&
+        event[0] !== "CLOSE"
+      ) {
+        reAddUpstream.push(data);
+      }
+
+      if (
+        ws.funded &&
+        (event || ((event = JSON.parse(data)) && event[0] === "EVENT"))
+      ) {
+        const e = event[1];
+        if (filterNipKind.includes(e.kind)) {
+          processSpam(e.pubkey, e.content, e.id).catch(() => {
+            console.error("Failed to process spam", event);
+          });
+        }
+      }
+
+      relay.send(data);
     }
-
-    relay.send(data);
+    clientObj.queueUpstream.push(...reAddUpstream);
   }
-  clientObj.queueUpstream.push(...reAddUpstream);
 
   if (ws.readyState !== WebSocket.OPEN) return;
   while ((data = clientObj.queueDownstream.pop())) {

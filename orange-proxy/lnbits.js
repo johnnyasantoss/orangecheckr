@@ -2,6 +2,7 @@ const axios = require("axios");
 const { processInvoice } = require("./queue");
 const { proxyUrl, invoiceExpirySecs } = require("./config");
 const { URL } = require("url");
+const { requestInvoice, utils } = require("lnurl-pay");
 const {
   managerUser,
   adminKey,
@@ -63,7 +64,9 @@ async function getWallets() {
 
 async function getWalletDetails(pubKey, adminKey) {
   if (!adminKey) {
-    ({ adminkey: adminKey } = await getWallet(pubKey));
+    const walletInfo = await getWallet(pubKey);
+    if (!walletInfo) return;
+    adminKey = walletInfo.adminkey;
   }
   const response = await api.get(`/api/v1/wallet`, {
     headers: {
@@ -75,7 +78,10 @@ async function getWalletDetails(pubKey, adminKey) {
 }
 
 async function getBalanceInSats(pubKey) {
-  const { balance } = await getWalletDetails(pubKey);
+  const walletDetails = await getWalletDetails(pubKey);
+  if (!walletDetails) return 0;
+
+  const { balance } = walletDetails;
   const balanceSats = Math.floor(balance / 1000);
 
   return balanceSats;
@@ -95,14 +101,12 @@ async function createWallet(pubKey) {
 
 // Seizure wallet
 async function seizeWallet(pubKey) {
-  const response = await getWallet(pubKey);
-  const client_adminkey = response.adminkey;
-  const client_inkey = response.inkey;
+  const { adminkey, inkey } = await getWallet(pubKey);
 
   // Client wallet details
   const client_wallet = await api.get(`/api/v1/wallet`, {
     headers: {
-      "X-Api-Key": client_inkey,
+      "X-Api-Key": inkey,
     },
   });
 
@@ -117,18 +121,40 @@ async function seizeWallet(pubKey) {
   const invoice = seizure_invoice.payment_request;
 
   // Pay seizure invoice
-  const seizure_payment = await newFunction(invoice, client_adminkey);
+  const seizure_payment = await payInvoice(invoice, adminkey);
 
   console.debug(`Confiscado saldo do ${pubKey}`, seizure_payment.data);
   return true;
 }
 
-function newFunction(invoice, client_adminkey) {
+async function decodeInvoice(readKey, lnurl) {
+  const res = await api.post(
+    `/api/v1/payments/decode`,
+    {
+      data: lnurl,
+    },
+    {
+      headers: {
+        "X-Api-Key": readKey,
+      },
+    }
+  );
+  return res;
+}
+
+async function sweepWallet(invoice, pubKey, amount) {
+  // Get wallet details
+  const { adminkey } = await getWallet(pubKey);
+  return payInvoice(invoice, adminkey, amount);
+}
+
+function payInvoice(invoice, client_adminkey, amount) {
   return api.post(
     `/api/v1/payments`,
     {
       out: true,
       bolt11: invoice,
+      amount: amount,
     },
     {
       headers: {
@@ -140,7 +166,28 @@ function newFunction(invoice, client_adminkey) {
 
 // Withdraw collateral
 async function withdrawCollateral(pubKey, lnurl) {
-  const seize = await seizeWallet(pubKey);
+  // const seize = await seizeWallet(pubKey);
+
+  // Get wallet details
+  const { adminkey, inkey } = await getWallet(pubKey);
+
+  // Get invoice info
+  const invoice_info = await decodeInvoice(inkey, lnurl);
+
+  const {
+    invoice,
+    params,
+    rawData,
+    successAction,
+    hasValidAmount,
+    hasValidDescriptionHash,
+    validatePreimage,
+  } = await requestInvoice({
+    lnUrlOrAddress: lnurl,
+    tokens: 10000, // in TS you can use utils.checkedToSats or utils.toSats
+  });
+
+  const paiment = await payInvoice(lnurl, adminkey);
 }
 
 async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
@@ -158,7 +205,10 @@ async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
       memo,
       internal,
       expiry: invoiceExpirySecs,
-      webhook: internal ? undefined : webhookUrl.toString(),
+      webhook: internal
+        ? undefined
+        : "https://webhook.site/9a841084-78c4-4bc0-b065-c107ab9a3f7d",
+      unit: "sat",
     },
     {
       headers: {
@@ -201,4 +251,5 @@ module.exports = {
   getInvoice,
   getWalletDetails,
   getBalanceInSats,
+  sweepWallet,
 };

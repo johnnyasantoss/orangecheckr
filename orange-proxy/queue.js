@@ -1,5 +1,4 @@
-const { Queue } = require("bullmq");
-const { Worker } = require("bullmq");
+const { Queue, Worker } = require("bullmq");
 const { resolve } = require("path");
 
 const connection = { host: "localhost", port: 6379 };

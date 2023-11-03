@@ -28,7 +28,7 @@ class Bot {
 
   async connect() {
     await this.relay.connect();
-    await this._publishMetadata();
+    // await this._publishMetadata();
     let sub = this.relay.sub([
       {
         kinds: [4],
@@ -46,13 +46,13 @@ class Bot {
       invoice = await fundCollateral(pubkey);
     }
 
-    let message = `To use this relay you need to post ${collateralRequired} sats as collateral. You may lose your funds if you violate our Posting Policy (${postingPolicyUrl}).\nTo proceed, pay the following lightning invoice:\n\n${invoice}\n\nYou may withdraw your collateral at any time by replying with /withdrawCollateral.`;
+    let message = `To use this relay you need to post ${collateralRequired} sats as collateral. You may lose your funds if you violate our Posting Policy (${postingPolicyUrl}).\nTo proceed, pay the following lightning invoice:\n\n${invoice}\n\nYou may withdraw your collateral at any time by replying with /withdrawCollateral <lightning invoice>.`;
 
     await this._sendMessage(pubkey, message);
   }
 
   async notifyCollateralPosted(pubkey) {
-    let message = `Collateral posted! You may now use this relay.\nYou may withdraw your collateral at any time by replying with /withdrawCollateral.`;
+    let message = `Collateral posted! You may now use this relay.\nYou may withdraw your collateral at any time by replying with /withdrawCollateral <lightning invoice>.`;
 
     await this._sendMessage(pubkey, message);
   }
@@ -64,7 +64,7 @@ class Bot {
   }
 
   async notifyCollateralWithdrawnFailed(pubkey) {
-    let message = `Collateral withdrawal failed! You need to set a valid lightning address in your profile for us to pay you back. To try again, reply with /withdrawCollateral`;
+    let message = `Collateral withdrawal failed! You need to set a valid lightning address in your profile for us to pay you back. To try again, reply with /withdrawCollateral <lightning invoice>`;
 
     await this._sendMessage(pubkey, message);
   }
@@ -76,7 +76,7 @@ class Bot {
   }
 
   async informCollateralAmount(pubkey, amount) {
-    let message = `You have posted ${amount} sats as collateral.\nIf you want to withdraw, reply with /withdrawCollateral.`;
+    let message = `You have posted ${amount} sats as collateral.\nIf you want to withdraw, reply with /withdrawCollateral <lightning invoice>.`;
 
     await this._sendMessage(pubkey, message);
   }
@@ -135,7 +135,8 @@ class Bot {
     if (message === "/postCollateral") {
       const invoice = await fundCollateral(event.pubkey);
       await this.askForCollateral(event.pubkey, invoice);
-    } else if (message === "/withdrawCollateral") {
+    } else if (message.startsWith("/withdrawCollateral")) {
+      let invoice = message.substring("/withdrawCollateral ".length)
       await this.withdrawalCollateral(event.pubkey, invoice);
     } else if (message === "/seize") {
       // TODO: Remover
@@ -145,16 +146,19 @@ class Bot {
         event.pubkey,
         `Sorry, I didn't understand that.
 If you want to post collateral, reply with "/postCollateral".
-If you want to withdraw collateral, reply with "/withdrawCollateral".`
+If you want to withdraw collateral, reply with /withdrawCollateral <lightning invoice>.`
       );
       console.log("Bot received message: ", message);
     }
   }
 
-  async withdrawalCollateral(pubKey, invoice) {}
+  async withdrawalCollateral(pubKey, invoice) {
+    console.log("PAY", invoice);
+  }
 }
 
 module.exports = Bot;
+
 function getNow() {
   return Math.floor(Date.now() / 1000);
 }

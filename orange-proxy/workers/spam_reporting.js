@@ -1,16 +1,18 @@
-const { isPast } = require("date-fns");
-const { getInvoice } = require("../lnbits");
-const { axios } = require("axios");
+const axios = require("axios");
 const { policyUrl, checkSpamUrl } = require("../config");
-const banUser = require("../helpers/banUser");
+const banUserInRelay = require("../helpers/banUserInRelay");
+const Bot = require("../bot");
+let bot;
 
 /**
  * @param {import('bullmq').SandboxedJob} job
  */
 module.exports = async (job) => {
   const {
-    data: { note, pubkey },
+    data: { note, pubkey, eventId },
   } = job;
+
+  bot = bot || new Bot();
 
   try {
     const spamCheck = await axios
@@ -24,13 +26,17 @@ module.exports = async (job) => {
           reasoning: data.reasoning,
           note,
           pubkey,
+          eventId,
         };
       });
 
-    if (spamCheck.credibility < 1) {
-      await banUser(pubkey);
+    console.debug("Spam check concluido", spamCheck);
+
+    if (spamCheck.credibility < 0.7) {
+      await bot.notifyPolicyViolation(pubkey, eventId);
+      await banUserInRelay(spamCheck);
     }
   } catch (error) {
-    throw new Error(`Failed to fetch invoice: ${error.message}`);
+    throw new Error(`Error in spam reporting: ${error.message}`);
   }
 };
