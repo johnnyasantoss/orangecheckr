@@ -1,0 +1,81 @@
+body {
+    font-family: 'Times New Roman', serif;
+    background: #f4f4f4;
+  }
+
+  .header {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .logo {
+    height: 50px;
+    width: 50px;
+    background: orange;
+    display: inline-block;
+    margin-right: 16px;
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .logo::after {
+    content: '✓';
+    position: absolute;
+    left: 17px;
+    top: 12px;
+    font-size: 22px;
+    color: white;
+  }
+
+  .card-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 20px;
+  }
+
+  .card {
+    width: 150px;
+    height: 80px;
+    border-radius: 10px;
+    padding: 20px;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    margin: 20px 10px;
+  }
+  
+  .red { background: linear-gradient(135deg, crimson, red); }
+  .green { background: linear-gradient(135deg, limegreen, green); }
+  .blue { background: linear-gradient(135deg, navy, blue); }
+  .yellow { background: linear-gradient(135deg, yellow, gold); }
+
+  .title {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .value {
+    font-size: 24px;
+    margin-top: 10px;
+  }
+  .start-review {
+    background: #22aaff;
+    color: white;
+    border:none;
+    padding: 10px 20px;
+    text-align: center;
+    display: block;
+    border-radius: 50px;
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.2);
+    cursor: pointer;
+    margin-top: 20px;
+    text-decoration: none;
+    width: 100px;}
+
+    .review{
+      margin: 50px 45%;
+
+    }

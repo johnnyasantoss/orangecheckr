@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orange Check Dashboard</title>
+
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <div class="header">
+      <span class="logo"></span>
+      <h1>Orange Check</h1>
+    </div>
+
+    <div class="card-container" v-scope>
+      <div>
+        <div class="card red">
+          <div class="title">Total Collateral</div>
+          <div class="value">{{ totalCollateral }}</div>
+        </div>
+        <div class="card green">
+          <div class="title">Income</div>
+          <div class="value">$890,123</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card blue">
+          <div class="title">Total Pubkeys</div>
+          <div class="value">{{ totalPubKeys }}</div>
+        </div>
+        <div class="card yellow">
+          <div class="title">Pendent Reports</div>
+          <div class="value">76</div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="review"><a href="#" class="start-review">Start Review</a></div>
+  </div>
+  <script>
+    const { createApp, ref } = Vue
+
+    createApp({
+      setup() {
+        const totalCollateral = ref(null)
+        const totalPubKeys = ref(null)
+
+        fetch('https://1337-johnnyasant-satshackora-i5zo9336ya4.ws-us105.gitpod.io/reports')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Network response was not ok ' + response.statusText);
+            }
+            return response.json();
+          })
+          .then(data => {
+            totalCollateral.value = data.totalCollateral
+            totalPubKeys.value = data.totalPubKeys
+          })
+          .catch(error => {
+            console.error('There was an error!', error);
+          });
+
+        return {
+          totalCollateral,
+          totalPubKeys
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+
+</html>
