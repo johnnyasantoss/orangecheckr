@@ -78,6 +78,13 @@ async function getWalletDetails(pubKey, adminKey) {
   return response.data;
 }
 
+async function getBalanceInSats(pubKey) {
+  const { balance } = await getWalletDetails(pubKey);
+  const balanceSats = Math.floor(balance / 1000);
+
+  return balanceSats;
+}
+
 // Create wallet
 async function createWallet(pubKey) {
   const userData = {
@@ -179,4 +186,5 @@ module.exports = {
   getWallets,
   getInvoice,
   getWalletDetails,
+  getBalanceInSats,
 };

@@ -5,12 +5,13 @@ const { resolve } = require("path");
 const connection = { host: "localhost", port: 6379 };
 const invoicesProcessingQueue = new Queue("invoices_processing", {
   defaultJobOptions: {
-    attempts: 10,
+    attempts: 100,
+    delay: 10000,
     removeOnComplete: 1000,
     removeOnFail: false,
     backoff: {
       type: "exponential",
-      delay: 500,
+      delay: 1000,
     },
   },
 
