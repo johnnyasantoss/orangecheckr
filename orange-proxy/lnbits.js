@@ -65,11 +65,13 @@ async function getWallets() {
   return response.data;
 }
 
-async function getWalletDetails(pubKey) {
-  const { adminkey } = await getWallet(pubKey);
+async function getWalletDetails(pubKey, adminKey) {
+  if (!adminKey) {
+    ({ adminkey: adminKey } = await getWallet(pubKey));
+  }
   const response = await api.get(`/api/v1/wallet`, {
     headers: {
-      "X-Api-Key": adminkey,
+      "X-Api-Key": adminKey,
     },
   });
 
