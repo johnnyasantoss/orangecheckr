@@ -1,5 +1,7 @@
 const axios = require("axios");
 const { processInvoice } = require("./queue");
+const { proxyUrl } = require("./config");
+const { URL } = require("url");
 
 // Manager - LNbits user in the URL
 const USER = process.env.USER_MANAGER;
@@ -78,6 +80,13 @@ async function getWalletDetails(pubKey, adminKey) {
   return response.data;
 }
 
+async function getBalanceInSats(pubKey) {
+  const { balance } = await getWalletDetails(pubKey);
+  const balanceSats = Math.floor(balance / 1000);
+
+  return balanceSats;
+}
+
 // Create wallet
 async function createWallet(pubKey) {
   const userData = {
@@ -131,7 +140,16 @@ async function seizeWallet(pubKey) {
   return true;
 }
 
+// Withdraw collateral
+
+
 async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
+  const webhookUrl = new URL(
+    `/webhooks/lnbits/paid/${pubKey}`,
+    proxyUrl.toString()
+  );
+  webhookUrl.protocol = "https";
+
   const res = await api.post(
     `/api/v1/payments`,
     {
@@ -140,6 +158,7 @@ async function createInvoice(amount, memo, internal = false, apiKey, pubKey) {
       memo,
       internal,
       expiry: process.env.INVOICE_EXPIRY_SECS,
+      webhook: internal ? undefined : webhookUrl.toString(),
     },
     {
       headers: {
@@ -179,4 +198,5 @@ module.exports = {
   getWallets,
   getInvoice,
   getWalletDetails,
+  getBalanceInSats,
 };

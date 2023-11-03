@@ -9,15 +9,19 @@ module.exports = async (job) => {
     data: { paymentHash, apiKey },
   } = job;
 
-  const invoiceInfo = await getInvoice(paymentHash, apiKey);
+  try {
+    const invoiceInfo = await getInvoice(paymentHash, apiKey);
 
-  if (isPast(invoiceInfo.details.expiry)) {
-    job.log("Expired");
-  }
+    if (isPast(invoiceInfo.details.expiry)) {
+      throw new Error("Expired");
+    }
 
-  if (invoiceInfo.paid) {
-    return;
-  } else {
-    job.log("Not paid yet");
+    if (invoiceInfo.paid) {
+      process.emit(`${pubkey}.paid`, invoiceInfo);
+    } else {
+      job.log("Not paid yet");
+    }
+  } catch (error) {
+    throw new Error(`Failed to fetch invoice: ${error.message}`);
   }
 };

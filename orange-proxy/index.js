@@ -1,5 +1,12 @@
-require("dotenv").config();
 require("websocket-polyfill");
+
+const {
+  collateralRequired,
+  invoiceExpirySecs,
+  authTimeoutSecs,
+  proxyUrl,
+  relayUrl,
+} = require("./config");
 
 const WebSocket = require("ws");
 const { Server: WebSocketServer } = WebSocket;
@@ -9,8 +16,7 @@ const { v4: uuidV4 } = require("uuid");
 const { validateEvent, verifySignature } = require("nostr-tools");
 const Bot = require("./bot");
 const reports = require("./reports");
-
-const relayUrl = new URL(process.env.PROXY_URI);
+const { getBalanceInSats } = require("./lnbits");
 
 const clients = {};
 
@@ -21,9 +27,18 @@ const app = express();
 
 app.use(cors({ origin: "*" }));
 
+app.use((req, res, next) => {
+  console.debug(`HTTP: ${req.method} ${req.originalUrl}`);
+  return next();
+});
+
 reports(app);
 
-app.use((req, res, next) => res.json({ notFound: true }).status(404));
+app.post("/webhooks/lnbits/paid/:pubKey", (req, res) => {
+  const pubKey = req.params.pubKey;
+  process.emit(`${pubKey}.paid`, req.body);
+  return res.status(200).json({ success: true });
+});
 
 const server = app.listen(1337, () => {
   console.log("Aberto na porta 1337");
@@ -38,11 +53,9 @@ let id = 1;
 server.on("upgrade", function upgrade(req, socket, head) {
   req.id = id++;
 
-  console.debug("Recebeu upgrade do WS - passando para o relay", req.url);
+  console.debug("Recebeu upgrade do WS #%s", req.id);
   const wss = new WebSocketServer({ noServer: true });
-  const relay = new WebSocket(
-    "wss://7000-johnnyasant-satshackora-i5zo9336ya4.ws-us105.gitpod.io"
-  );
+  const relay = new WebSocket(relayUrl);
   /** @type {WebSocket | undefined} */
   let ws;
   const clientObj = (clients[req.id] = clients[req.id] || {
@@ -83,7 +96,7 @@ server.on("upgrade", function upgrade(req, socket, head) {
       closeConnection(clientObj);
     });
 
-    ws.on("message", (data) => {
+    ws.on("message", async (data) => {
       console.log(`Recebeu mensagem ${data} na conexão #${req.id}`);
 
       let msg;
@@ -108,14 +121,53 @@ server.on("upgrade", function upgrade(req, socket, head) {
           relayTag &&
           Array.isArray(relayTag) &&
           (relayTagUrl = new URL(relayTag[1])) &&
-          relayTagUrl.host === relayUrl.host
+          relayTagUrl.host === proxyUrl.hostname
         ) {
           ws.authenticated = true;
-          bot.askForCollateral(event.pubkey).catch((e) => {
-            console.error(`Falhou ao enviar a DM para a conexão #${req.id}`, e);
+          console.debug(`Usuário autenticado na conexão #${req.id}`);
+
+          const balance = await getBalanceInSats(event.pubkey);
+          if (balance && balance >= collateralRequired) {
+            ws.funded = true;
+
+            console.debug(`Usuário autenticado e com colateral #${req.id}`);
+            return;
+          }
+          const didSendMsg = await bot.askForCollateral(event.pubkey).then(
+            () => true,
+            (e) => {
+              console.error(
+                `Falhou ao enviar a DM para a conexão #${req.id}`,
+                e
+              );
+              return false;
+            }
+          );
+
+          if (didSendMsg) {
+            const timeout = setTimeout(async () => {
+              if (ws.funded) return;
+              const balance = await getBalanceInSats(event.pubkey);
+
+              if (balance && balance >= collateralRequired) {
+                ws.funded = true;
+                return;
+              }
+
+              closeConnection(clientObj);
+            }, invoiceExpirySecs * 1000);
+
+            process.once(`${event.pubkey}.paid`, (invoiceInfo) => {
+              console.debug(
+                `Recebeu pagamento do ${event.pubkey}`,
+                invoiceInfo
+              );
+              ws.funded = true;
+              clearTimeout(timeout);
+            });
+          } else {
             closeConnection(clientObj);
-          });
-          console.debug(`Usuário validado na conexão #${req.id}`);
+          }
         } else {
           console.warn(`Usuário invalido na conexão #${req.id}`);
           closeConnection(clientObj);
@@ -125,9 +177,6 @@ server.on("upgrade", function upgrade(req, socket, head) {
       }
 
       clientObj.queueUpstream.push(data);
-      if (ws.authenticated) {
-        relay.send(data);
-      }
     });
 
     sendAuthChallenge(ws, clientObj);
@@ -154,7 +203,7 @@ function sendAuthChallenge(ws, clientObj) {
     if (ws.authenticated) return;
     // não deu auth em 5s
     closeConnection(clientObj);
-  }, 5000).unref();
+  }, authTimeoutSecs * 1000).unref();
 }
 
 function closeConnection(clientObj) {
@@ -195,3 +244,13 @@ function drainMessageQueue(clientObj) {
     ws.send(data);
   }
 }
+
+app.use((req, res, next) => {
+  return Promise.resolve()
+    .then(() => next())
+    .catch((err) => {
+      console.error(`HTTP ERROR: `, err);
+    });
+});
+
+app.use((req, res, next) => res.json({ notFound: true }).status(404));

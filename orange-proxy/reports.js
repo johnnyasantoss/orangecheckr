@@ -4,7 +4,7 @@ const { getWallets, getWalletDetails } = require("./lnbits");
  * @param {import('express').Express} app
  */
 const reports = (app) => {
-  app.use("/reports", async (req, res) => {
+  app.get("/reports", async (req, res) => {
     const wallets = await getWallets();
 
     const walletsDetails = [];

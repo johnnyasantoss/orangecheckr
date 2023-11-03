@@ -145,7 +145,7 @@ class Bot {
       const invoice = await fundCollateral(event.pubkey);
       await this.askForCollateral(event.pubkey, invoice);
     } else if (message === "/withdrawCollateral") {
-      console.log("Call withdraw collateral");
+      await this.withdrawalCollateral(event.pubkey, invoice);
     } else if (message === "/seize") {
       // TODO: Remover
       await seizeWallet(event.pubkey);
@@ -159,6 +159,8 @@ If you want to withdraw collateral, reply with "/withdrawCollateral".`
       console.log("Bot received message: ", message);
     }
   }
+
+  async withdrawalCollateral(pubKey, invoice) {}
 }
 
 module.exports = Bot;
