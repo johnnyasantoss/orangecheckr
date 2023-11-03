@@ -7,21 +7,18 @@ const { getInvoice } = require("../lnbits");
 module.exports = async (job) => {
   const {
     data: { paymentHash, apiKey },
+    id: pubKey,
   } = job;
 
-  try {
-    const invoiceInfo = await getInvoice(paymentHash, apiKey);
+  const invoiceInfo = await getInvoice(paymentHash, apiKey);
 
-    if (isPast(invoiceInfo.details.expiry)) {
-      throw new Error("Expired");
-    }
+  if (isPast(invoiceInfo.details.expiry)) {
+    throw new Error("Expired");
+  }
 
-    if (invoiceInfo.paid) {
-      process.emit(`${pubkey}.paid`, invoiceInfo);
-    } else {
-      job.log("Not paid yet");
-    }
-  } catch (error) {
-    throw new Error(`Failed to fetch invoice: ${error.message}`);
+  if (invoiceInfo.paid) {
+    process.emit(`${pubKey}.paid`, invoiceInfo);
+  } else {
+    throw new Error("Not paid yet");
   }
 };

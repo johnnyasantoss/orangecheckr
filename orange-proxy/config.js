@@ -7,20 +7,15 @@ function missingEnv(key) {
 }
 
 module.exports = {
-  collateralRequired:
-    process.env.COLLATERAL_REQUIRED || missingEnv("COLLATERAL_REQUIRED"),
-  invoiceExpirySecs: Number(
-    process.env.INVOICE_EXPIRY_SECS || missingEnv("INVOICE_EXPIRY_SECS")
-  ),
-  authTimeoutSecs: Number(
-    process.env.AUTH_TIMEOUT_SECS || missingEnv("AUTH_TIMEOUT_SECS")
-  ),
-  proxyUrl: new URL(process.env.PROXY_URI || missingEnv("PROXY_URI")),
+  invoiceExpirySecs:
+    Number(process.env.INVOICE_EXPIRY_SECS) ||
+    missingEnv("INVOICE_EXPIRY_SECS"),
+  authTimeoutSecs:
+    Number(process.env.AUTH_TIMEOUT_SECS) || missingEnv("AUTH_TIMEOUT_SECS"),
+  proxyUrl: new URL(process.env.PROXY_URI) || missingEnv("PROXY_URI"),
   relayUri: process.env.RELAY_URI || missingEnv("RELAY_URI"),
   postingPolicyUrl:
     process.env.POSTING_POLICY_URL || missingEnv("POSTING_POLICY_URL"),
-  collateralRequired:
-    process.env.COLLATERAL_REQUIRED || missingEnv("COLLATERAL_REQUIRED"),
   botName: process.env.BOT_NAME || "Orange Checkr Bot",
   botAbout:
     process.env.BOT_ABOUT ||
@@ -30,9 +25,9 @@ module.exports = {
   managerUser: process.env.USER_MANAGER || missingEnv("USER_MANAGER"),
   adminKey: process.env.ADMIN_KEY || missingEnv("ADMIN_KEY"),
   lnbitsUrl: process.env.LNBITS_URL || missingEnv("LNBITS_URL"),
-  collateralRequired: Number(
-    process.env.COLLATERAL_REQUIRED || missingEnv("COLLATERAL_REQUIRED")
-  ),
+  collateralRequired:
+    Number(process.env.COLLATERAL_REQUIRED) ||
+    missingEnv("COLLATERAL_REQUIRED"),
   relayId: process.env.RELAY_ID || missingEnv("RELAY_ID"),
   relayInvoiceKey:
     process.env.RELAY_INVOICE_KEY || missingEnv("RELAY_INVOICE_KEY"),
