@@ -48,13 +48,26 @@ const spamReportingQueue = new Queue("spam_reporting", {
 
 const spamWorkerFile = resolve(__dirname, "workers", "spam_reporting.js");
 
-const spamReportingWorker = new Worker("invoices_processing", workerFile, {
+const spamReportingWorker = new Worker("spam_processing", spamWorkerFile, {
   concurrency: 1,
   connection,
 });
+
+function processSpam(pubKey, note) {
+  return spamReportingQueue.add(
+    "invoices_processing",
+    { pubKey, note },
+    {
+      jobId: pubKey,
+    }
+  );
+}
 
 module.exports = {
   invoicesProcessingQueue,
   invoicesProcessingWorker,
   processInvoice,
+  spamReportingQueue,
+  spamReportingWorker,
+  processSpam,
 };

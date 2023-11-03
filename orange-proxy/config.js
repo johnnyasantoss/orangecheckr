@@ -36,4 +36,6 @@ module.exports = {
   relayId: process.env.RELAY_ID || missingEnv("RELAY_ID"),
   relayInvoiceKey:
     process.env.RELAY_INVOICE_KEY || missingEnv("RELAY_INVOICE_KEY"),
+  policyUrl: process.env.POSTING_POLICY_URL || missingEnv("POSTING_POLICY_URL"),
+  checkSpamUrl: process.env.CHECK_SPAM_URL || missingEnv("CHECK_SPAM_URL"),
 };
