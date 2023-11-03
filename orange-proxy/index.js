@@ -21,9 +21,9 @@ const app = express();
 
 app.use(cors({ origin: "*" }));
 
-app.use((req, res, next) => res.json({ notFound: true }).status(404));
-
 reports(app);
+
+app.use((req, res, next) => res.json({ notFound: true }).status(404));
 
 const server = app.listen(1337, () => {
   console.log("Aberto na porta 1337");
