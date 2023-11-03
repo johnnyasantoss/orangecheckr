@@ -7,13 +7,12 @@ function missingEnv(key) {
 }
 
 module.exports = {
-  invoiceExpirySecs: Number(
-    process.env.INVOICE_EXPIRY_SECS || missingEnv("INVOICE_EXPIRY_SECS")
-  ),
-  authTimeoutSecs: Number(
-    process.env.AUTH_TIMEOUT_SECS || missingEnv("AUTH_TIMEOUT_SECS")
-  ),
-  proxyUrl: new URL(process.env.PROXY_URI || missingEnv("PROXY_URI")),
+  invoiceExpirySecs:
+    Number(process.env.INVOICE_EXPIRY_SECS) ||
+    missingEnv("INVOICE_EXPIRY_SECS"),
+  authTimeoutSecs:
+    Number(process.env.AUTH_TIMEOUT_SECS) || missingEnv("AUTH_TIMEOUT_SECS"),
+  proxyUrl: new URL(process.env.PROXY_URI) || missingEnv("PROXY_URI"),
   relayUri: process.env.RELAY_URI || missingEnv("RELAY_URI"),
   postingPolicyUrl:
     process.env.POSTING_POLICY_URL || missingEnv("POSTING_POLICY_URL"),
