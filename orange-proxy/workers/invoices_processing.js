@@ -16,13 +16,11 @@ module.exports = async (job) => {
 
     const invoiceInfo = await getInvoice(paymentHash, apiKey);
 
-    if (isPast(invoiceInfo.details.expiry)) {
-      return;
-    }
-
     if (invoiceInfo.paid) {
       await bot.notifyCollateralPosted(pubKey);
       process.emit(`${pubKey}.paid`, invoiceInfo);
+    } else if (isPast(invoiceInfo.details.expiry)) {
+      return;
     } else {
       throw new Error("Not paid yet");
     }

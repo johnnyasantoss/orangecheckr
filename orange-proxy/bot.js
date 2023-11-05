@@ -155,6 +155,10 @@ If you want to withdraw collateral, reply with /withdrawCollateral <lightning in
   async withdrawalCollateral(pubKey, invoice) {
     console.log("PAY", invoice);
   }
+
+  close() {
+    this.relay.close();
+  }
 }
 
 module.exports = Bot;
