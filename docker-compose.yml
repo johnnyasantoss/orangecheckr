@@ -3,7 +3,7 @@ services:
     image: scsibug/nostr-rs-relay:latest
     user: root:root
     ports:
-      - 7000:7000
+      - 7000:8080
     volumes:
       - ./.nostr/config.toml:/usr/src/app/config.toml
       - ./.nostr/data:/usr/src/app/db

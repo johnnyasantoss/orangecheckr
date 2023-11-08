@@ -9,17 +9,18 @@ const {
   filterNipKind,
 } = require("./config");
 
-const WebSocket = require("ws");
-const { Server: WebSocketServer } = WebSocket;
-const express = require("express");
-const cors = require("cors");
+const { getBalanceInSats } = require("./lnbits");
+const { processSpam } = require("./queue");
+const { URL } = require("url");
 const { v4: uuidV4 } = require("uuid");
 const { validateEvent, verifySignature } = require("nostr-tools");
 const Bot = require("./bot");
+const cors = require("cors");
+const express = require("express");
 const reports = require("./reports");
-const { getBalanceInSats } = require("./lnbits");
-const { processSpam } = require("./queue");
+const WebSocket = require("ws");
 
+const { Server: WebSocketServer } = WebSocket;
 const clients = {};
 
 const bot = new Bot();
@@ -47,21 +48,24 @@ const server = app.listen(1337, () => {
 });
 
 function validateAuthEvent(event, ws) {
-  const challengeTag = event.tags.find((tag) => tag[0] === "challenge");
-  const relayTag = event.tags.find((tag) => tag[0] === "relay");
-  let relayTagUrl;
+  try {
+    if (!validateEvent(event) || !verifySignature(event)) return false;
 
-  return (
-    validateEvent(event) &&
-    verifySignature(event) &&
-    challengeTag &&
-    Array.isArray(challengeTag) &&
-    challengeTag[1] === ws.authChallenge &&
-    relayTag &&
-    Array.isArray(relayTag) &&
-    (relayTagUrl = new URL(relayTag[1])) &&
-    relayTagUrl.host === proxyUrl.hostname
-  );
+    const [, challengeTag] = event.tags.find(([name]) => name === "challenge");
+    if (!challengeTag || challengeTag !== ws.authChallenge) return false;
+
+    const [, relayTag] = event.tags.find(([name]) => name === "relay");
+    if (!relayTag) return false;
+
+    const relayTagUrl = new URL(relayTag);
+
+    if (relayTagUrl.host !== proxyUrl.host) return false;
+
+    return true;
+  } catch (error) {
+    console.error("Failed validating auth event", error);
+    return false;
+  }
 }
 
 let id = 1;

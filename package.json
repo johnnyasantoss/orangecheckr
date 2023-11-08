@@ -1,0 +1,22 @@
+{
+  "name": "monorepo-orange-proxy",
+  "version": "1.0.0",
+  "description": "All projects related to orange proxy",
+  "main": "index.js",
+  "private": true,
+  "repository": {
+    "url": ""
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nostr",
+    "proxy",
+    "nip42",
+    "spam",
+    "filter"
+  ],
+  "author": "",
+  "license": "ISC"
+}
