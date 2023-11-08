@@ -6,8 +6,13 @@ settings:
 
 importers:
 
+  .: {}
+
   nostr-client:
     dependencies:
+      dotenv:
+        specifier: ^16.3.1
+        version: 16.3.1
       nostr-tools:
         specifier: ^1.17.0
         version: 1.17.0
