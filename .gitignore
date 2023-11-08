@@ -1,2 +1,8 @@
+# NodeJS stuff
 **/node_modules
+
+# Docker compose data
 .nostr/
+
+# Secrets
+**/.env
