@@ -1,7 +1,7 @@
 import { getWalletDetails, getWallets } from "./lnbits";
 
-export function reports(app: import("express").Express) {
-    return app.get("/reports", async (_req, res) => {
+export function reports(): import("express").RequestHandler {
+    return async (_req, res) => {
         const wallets = await getWallets();
 
         const walletsDetails = [];
@@ -20,5 +20,5 @@ export function reports(app: import("express").Express) {
         const totalPubKeys = wallets.length;
 
         return res.json({ totalCollateral, totalPubKeys }).status(200);
-    });
+    };
 }
