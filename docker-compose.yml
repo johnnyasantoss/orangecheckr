@@ -1,6 +1,7 @@
 services:
   nostr-rs-relay:
     image: scsibug/nostr-rs-relay:latest
+    container_name: relay
     user: root:root
     ports:
       - 7000:8080
@@ -9,6 +10,7 @@ services:
       - ./.nostr/data:/usr/src/app/db
   redis:
     image: redis
+    container_name: redis
     command: redis-server --save 60 1 --loglevel debug --maxmemory-policy noeviction
     ports:
       - 6379:6379
