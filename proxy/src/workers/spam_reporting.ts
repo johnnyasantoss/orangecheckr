@@ -28,6 +28,6 @@ export default async function (job: SandboxedJob) {
             await banUserInRelay(spamCheck);
         }
     } catch (error) {
-        throw new Error(`Error in spam reporting: ${error.message}`);
+        throw new Error(`Error in spam reporting: ${(error as any).message}`);
     }
 }

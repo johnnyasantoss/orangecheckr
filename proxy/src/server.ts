@@ -282,9 +282,9 @@ function drainMessageQueue(clientObj: ClientContext) {
 
     if (!clientObj.authenticated) return;
 
-    let data;
+    let data: WebSocket.RawData | undefined;
     if (relay.readyState === WebSocket.OPEN) {
-        const reAddUpstream = [];
+        const reAddUpstream: WebSocket.RawData[] = [];
         while ((data = clientObj.queueUpstream.pop())) {
             let event: any[] | undefined = undefined;
 

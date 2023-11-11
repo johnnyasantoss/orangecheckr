@@ -5,6 +5,7 @@ services:
     user: root:root
     ports:
       - 7000:8080
+    restart: always
     volumes:
       - ./.nostr/config.toml:/usr/src/app/config.toml
       - ./.nostr/data:/usr/src/app/db
@@ -12,6 +13,7 @@ services:
     image: redis
     container_name: redis
     command: redis-server --save 60 1 --loglevel debug --maxmemory-policy noeviction
+    restart: always
     ports:
       - 6379:6379
     volumes:
@@ -19,4 +21,3 @@ services:
 
 networks:
   relay:
-  

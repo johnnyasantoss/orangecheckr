@@ -23,9 +23,9 @@ function initQueue(
             queue.on(e as any, () => console.debug(`Evento ${String(e)} na fila: ${name}`))
         );
 
-    const workerFile = resolve(__dirname, "workers", `${name}.js`);
+    const workerFile = resolve(__dirname, "workers", name);
 
-    const worker = new Worker(name, require(workerFile), {
+    const worker = new Worker(name, require(workerFile).default, {
         ...workerOptions,
         connection,
     });
