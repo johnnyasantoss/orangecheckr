@@ -1,19 +1,21 @@
-const { OpenAI } = require("openai");
-const { openAiKey } = require("./config");
+import { OpenAI } from "openai";
+import { config } from "./config";
 
 const openai = new OpenAI({
-  apiKey: openAiKey,
+    apiKey: config.openAiKey,
 });
 
 class EvaluationPrompt {
-  constructor() {
-    this.base = `As an expert Nostr content policy evaluator, assess whether the given note aligns with the specific policy.
+    base: string;
+
+    constructor() {
+        this.base = `As an expert Nostr content policy evaluator, assess whether the given note aligns with the specific policy.
 
 ### Context:
 You are provided with a note that needs to be evaluated for compliance with the content policy. The content policy encompasses certain guidelines and rules that must be followed for content to be deemed acceptable.
 
 ### Instruction:
-Evaluate the note provided and determine how much it adheres to the policy. 
+Evaluate the note provided and determine how much it adheres to the policy.
 
 ### Outcome:
 Based on your analysis, return a json with the credibility of how much the note follows the policy. The credibility should be a float between 0.0 and 1.0, being 0.0 the note does not follow the policy at all and 1 the note follows the policy completely.
@@ -25,7 +27,7 @@ Examples:
 Policy: No explicit language
 Note: "This is a fantastic product!"
 Thought: Does this note follow the policy?
-Outcome: 
+Outcome:
 \`\`\`json
 {"credibility": 1.0, "reasoning": "The note does not contain any explicit language."}
 \`\`\`
@@ -59,28 +61,24 @@ Policy: {policy}
 Note: {note}
 Thought: Does this note follow the policy?
 Outcome: `;
-  }
+    }
 
-  prompt(policy, note) {
-    return this.base.replace("{policy}", policy).replace("{note}", note);
-  }
+    prompt(policy: string, note: string) {
+        return this.base.replace("{policy}", policy).replace("{note}", note);
+    }
 }
 
-async function evaluatePolicy(policy, note) {
-  const evaluationPrompt = new EvaluationPrompt();
-  const customPrompt = evaluationPrompt.prompt(policy, note);
+export async function evaluatePolicy(policy: string, note: any) {
+    const evaluationPrompt = new EvaluationPrompt();
+    const customPrompt = evaluationPrompt.prompt(policy, note);
 
-  const chatCompletion = await openai.chat.completions.create({
-    messages: [{ role: "user", content: customPrompt }],
-    model: "gpt-3.5-turbo",
-  });
+    const chatCompletion = await openai.chat.completions.create({
+        messages: [{ role: "user", content: customPrompt }],
+        model: "gpt-3.5-turbo",
+    });
 
-  const output = chatCompletion["choices"][0]["message"]["content"];
+    const output = chatCompletion["choices"][0]["message"]["content"];
 
-  // Parse it to JSON
-  return JSON.parse(output);
+    // Parse it to JSON
+    return JSON.parse(output!);
 }
-
-module.exports = {
-  evaluatePolicy,
-};
