@@ -8,11 +8,11 @@
       "type": "node",
       "request": "launch",
       "name": "Proxy",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
+      "sourceMaps": true,
+      "sourceMapRenames": true,
       "cwd": "${workspaceFolder}/proxy",
-      "program": "${workspaceFolder}/proxy"
+      "program": "${workspaceFolder}/proxy",
+      "preLaunchTask": "proxy-build-watch"
     }
   ]
 }
