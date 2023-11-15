@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { isDev } from "./config";
 import { reports } from "./reports";
 
 export function createServerHandler(): Express.Application {
@@ -11,6 +12,10 @@ export function createServerHandler(): Express.Application {
         console.debug(`HTTP: ${req.method} ${req.originalUrl}`);
         return next();
     });
+
+    if (isDev()) {
+        app.get("/info", (req, res) => res.json({ pid: process.pid }));
+    }
 
     app.get("/reports", reports());
 

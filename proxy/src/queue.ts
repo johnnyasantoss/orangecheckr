@@ -1,6 +1,5 @@
 import { DefaultJobOptions, Queue, Worker, WorkerOptions } from "bullmq";
 import { resolve } from "path";
-import { isSymbolObject } from "util/types";
 
 const connection = { host: "localhost", port: 6379 };
 
@@ -16,12 +15,19 @@ function initQueue(
         connection,
     });
 
-    queue
-        .eventNames()
-        .filter((e) => !isSymbolObject(e))
-        .forEach((e) =>
-            queue.on(e as any, () => console.debug(`Evento ${String(e)} na fila: ${name}`))
-        );
+    [
+        "cleaned",
+        "error",
+        "paused",
+        "progress",
+        "removed",
+        "resumed",
+        "waiting",
+    ].forEach((e) =>
+        queue.on(e as any, () =>
+            console.debug(`Evento ${String(e)} na fila: ${name}`)
+        )
+    );
 
     const workerFile = resolve(__dirname, "workers", name);
 
@@ -30,12 +36,24 @@ function initQueue(
         connection,
     });
 
-    worker
-        .eventNames()
-        .filter((e) => !isSymbolObject(e))
-        .map((e) =>
-            worker.on(e as any, () => console.debug(`Evento ${String(e)} no worker: ${name}`))
-        );
+    [
+        "active",
+        "closed",
+        "closing",
+        "completed",
+        "drained",
+        "error",
+        "failed",
+        "paused",
+        "progress",
+        "ready",
+        "resumed",
+        "stalled",
+    ].map((e) =>
+        worker.on(e as any, () =>
+            console.debug(`Evento ${String(e)} no worker: ${name}`)
+        )
+    );
 
     return { queue, worker };
 }

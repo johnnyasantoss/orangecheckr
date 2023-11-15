@@ -6,9 +6,11 @@ function missingEnv(key: string): never {
 }
 
 export const config = {
+    envType: process.env["NODE_ENV"] || "development",
     invoiceExpirySecs:
         Number(process.env["INVOICE_EXPIRY_SECS"]) ||
         missingEnv("INVOICE_EXPIRY_SECS"),
+    workersAmount: Number(process.env["NUM_WORKERS"]),
     authTimeoutSecs:
         Number(process.env["AUTH_TIMEOUT_SECS"]) ||
         missingEnv("AUTH_TIMEOUT_SECS"),
@@ -41,4 +43,9 @@ export const config = {
         .map((k) => parseInt(k)),
     openAiKey: process.env["OPENAI_API_KEY"] || missingEnv("OPENAI_API_KEY"),
 };
+
 export default config;
+
+export function isDev() {
+    return config.envType !== "production";
+}
