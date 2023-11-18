@@ -1,0 +1,10 @@
+services:
+  orangecheckr:
+    build: ./proxy
+    container_name: orangecheckr
+    network_mode: host
+    restart: always
+    env_file: ./proxy/.env
+    stop_signal: SIGTERM
+networks:
+  relay:

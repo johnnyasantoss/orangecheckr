@@ -1,5 +1,5 @@
 services:
-  nostr-rs-relay:
+  relay:
     image: scsibug/nostr-rs-relay:latest
     container_name: relay
     user: root:root
