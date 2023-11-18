@@ -32,8 +32,8 @@ module.exports = {
   relayInvoiceKey:
     process.env.RELAY_INVOICE_KEY || missingEnv("RELAY_INVOICE_KEY"),
   policyUrl: process.env.POSTING_POLICY_URL || missingEnv("POSTING_POLICY_URL"),
-  checkSpamUrl: process.env.CHECK_SPAM_URL || missingEnv("CHECK_SPAM_URL"),
   filterNipKind: (process.env.FILTER_NIP_KIND || missingEnv("FILTER_NIP_KIND"))
     .split(",")
     .map((k) => parseInt(k)),
+  openAiKey: process.env.OPENAI_API_KEY || missingEnv("OPENAI_API_KEY"),
 };

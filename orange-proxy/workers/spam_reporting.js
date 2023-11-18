@@ -1,6 +1,6 @@
-const axios = require("axios");
-const { policyUrl, checkSpamUrl } = require("../config");
+const { policyUrl } = require("../config");
 const banUserInRelay = require("../helpers/banUserInRelay");
+const { evaluatePolicy } = require("../llm");
 let bot;
 
 /**
@@ -15,22 +15,15 @@ module.exports = async (job) => {
     const Bot = require("../bot");
     const bot = new Bot();
 
-    const spamCheck = await axios
-      .post(checkSpamUrl, {
-        policy_url: policyUrl,
-        note,
-      })
-      .then(({ data }) => {
-        return {
-          credibility: data.credibility,
-          reasoning: data.reasoning,
-          note,
-          pubkey,
-          eventId,
-        };
-      });
+    const response = await fetch(policyUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const policy = await response.text();
 
-    console.debug("Spam check concluido", spamCheck);
+    const spamCheck = await evaluatePolicy(policy, note);
+
+    console.debug("Spam check completed", spamCheck);
 
     if (spamCheck.credibility < 0.7) {
       await bot.notifyPolicyViolation(pubkey, eventId);
