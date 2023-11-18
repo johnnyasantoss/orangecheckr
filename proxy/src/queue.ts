@@ -2,8 +2,9 @@ import { DefaultJobOptions, Queue, Worker, WorkerOptions } from "bullmq";
 import cluster from "node:cluster";
 import { resolve } from "path";
 import { setupShutdownHook } from "./shutdown";
+import config from "./config";
 
-const connection = { host: "localhost", port: 6379 };
+const connection = { host: config.redisHost, port: parseInt(config.redisPort) };
 
 function initQueue(
     name: string,
@@ -27,9 +28,12 @@ function initQueue(
         "resumed",
         "waiting",
     ].forEach((e) =>
-        queue.on(e as any, () =>
-            console.debug(`Evento ${String(e)} na fila: ${name}`)
-        )
+        queue.on(e as any, function () {
+            return console.debug(
+                `Evento ${String(e)} na fila: ${name}`,
+                ...arguments
+            );
+        })
     );
 
     if (cluster.isPrimary) return { queue };
@@ -56,9 +60,12 @@ function initQueue(
         "resumed",
         "stalled",
     ].map((e) =>
-        worker.on(e as any, () =>
-            console.debug(`Evento ${String(e)} no worker: ${name}`)
-        )
+        worker.on(e as any, function () {
+            return console.debug(
+                `Evento ${String(e)} no worker: ${name}`,
+                ...arguments
+            );
+        })
     );
 
     return { queue, worker };

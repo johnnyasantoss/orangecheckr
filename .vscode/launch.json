@@ -11,8 +11,12 @@
       "sourceMaps": true,
       "sourceMapRenames": true,
       "cwd": "${workspaceFolder}/proxy",
+      "runtimeArgs": [
+        "--trace-warnings"
+      ],
       "program": "${workspaceFolder}/proxy",
-      "preLaunchTask": "proxy-build-watch"
+      "preLaunchTask": "proxy-build-watch",
+      "killBehavior": "polite"
     }
   ]
 }

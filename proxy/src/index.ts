@@ -96,6 +96,7 @@ if (cluster.isPrimary) {
     });
 }
 
-process.on("unhandledRejection", (reason, promise) => {
-    console.error(`ERROR: ${reason} ${promise}`);
+process.title = `orangecheckr (${cluster.isPrimary ? "main" : "worker"})`;
+process.on("unhandledRejection", function () {
+    console.error(`ERROR: Unhandled rejection`, ...arguments);
 });

@@ -37,7 +37,9 @@ export interface ClientContext {
 export const clients: Record<string, ClientContext> = {};
 
 export const bot = new Bot();
-bot.connect();
+bot.connect().catch((e) => {
+    console.error("Bot failed to connect", e);
+});
 setupShutdownHook(() => bot.close());
 
 function validateAuthEvent(event: Event, authChallenge: string) {
