@@ -39,6 +39,22 @@ export class Bot {
             );
         }
         this.relay = relayInit(relayUri);
+        this.relay.on("auth", () => {
+            throw new Error("Bot can not authenticate in upstream relay yet.");
+        });
+        this.relay.on("connect", () => {
+            console.debug("Bot connected to upstream relay.");
+        });
+        this.relay.on("disconnect", () => {
+            console.debug("Bot disconnected to upstream relay.");
+        });
+        this.relay.on("error", function () {
+            console.debug("Bot connection error", ...arguments);
+        });
+        this.relay.on("notice", function (notice) {
+            console.info("Bot connection notice: ", notice);
+        });
+
         this.privateKey = botPrivateKey;
         this.publicKey = getPublicKey(this.privateKey);
     }
