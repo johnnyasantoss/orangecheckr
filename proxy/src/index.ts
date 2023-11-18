@@ -5,8 +5,8 @@ import config from "./config";
 import cluster from "node:cluster";
 import { createServer } from "node:http";
 import { availableParallelism, cpus } from "node:os";
-import { isSymbolObject } from "node:util/types";
 import { createServerHandler } from "./server";
+import { setupShutdownHook, shutdown } from "./shutdown";
 import { handleWsUpgrade } from "./ws";
 
 const numCPUs =
@@ -49,6 +49,23 @@ if (cluster.isPrimary) {
             console.debug(`Event(${e}) on cluster`, ...arguments);
         });
     }
+
+    function handleShutdown(signal: NodeJS.Signals): void {
+        console.debug(`Received ${signal}. Shutting down`);
+
+        const workers = cluster.workers ?? {};
+        for (const k in workers) {
+            const worker = workers[k];
+            if (!worker) continue;
+
+            worker.send("shutdown");
+        }
+
+        shutdown();
+    }
+
+    process.on("SIGINT", handleShutdown);
+    process.on("SIGTERM", handleShutdown);
 } else {
     console.debug(`Worker#${process.pid} is running`);
     const app = createServerHandler();
@@ -61,12 +78,24 @@ if (cluster.isPrimary) {
     });
 
     server.on("listening", () => {
-        console.info(`Server listening on port 1337`);
+        console.info(`Server listening on port ${config.port}`);
     });
 
-    server.listen({ host: "0.0.0.0", port: 1337 });
+    server.listen({ host: "0.0.0.0", port: config.port });
+    setupShutdownHook(() => server.close());
 
-    process.on("unhandledRejection", (reason, promise) => {
-        console.error(`ERROR: ${reason} ${promise}`);
+    process.on("message", (msg) => {
+        switch (msg) {
+            case "shutdown":
+                return shutdown();
+
+            default:
+                console.error(`Invalid message received: ${msg}`);
+                return;
+        }
     });
 }
+
+process.on("unhandledRejection", (reason, promise) => {
+    console.error(`ERROR: ${reason} ${promise}`);
+});

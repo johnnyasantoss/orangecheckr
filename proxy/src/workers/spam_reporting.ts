@@ -9,10 +9,9 @@ export default async function (job: SandboxedJob) {
         data: { note, pubkey, eventId },
     } = job;
 
+    const { Bot } = await import("../bot.js");
+    const bot = new Bot();
     try {
-        const Bot = require("../bot");
-        const bot = new Bot();
-
         const response = await fetch(policyUrl);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -29,5 +28,7 @@ export default async function (job: SandboxedJob) {
         }
     } catch (error) {
         throw new Error(`Error in spam reporting: ${(error as any).message}`);
+    } finally {
+        bot.close();
     }
 }

@@ -7,6 +7,8 @@ import { Bot } from "./bot";
 import config from "./config";
 import { getBalanceInSats } from "./lnbits";
 import { processSpam } from "./queue";
+import { setupShutdownHook } from "./shutdown";
+
 const {
     authTimeoutSecs,
     collateralRequired,
@@ -36,6 +38,7 @@ export const clients: Record<string, ClientContext> = {};
 
 export const bot = new Bot();
 bot.connect();
+setupShutdownHook(() => bot.close());
 
 function validateAuthEvent(event: Event, authChallenge: string) {
     try {

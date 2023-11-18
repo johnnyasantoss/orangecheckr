@@ -1,5 +1,7 @@
 import { DefaultJobOptions, Queue, Worker, WorkerOptions } from "bullmq";
+import cluster from "node:cluster";
 import { resolve } from "path";
+import { setupShutdownHook } from "./shutdown";
 
 const connection = { host: "localhost", port: 6379 };
 
@@ -9,11 +11,12 @@ function initQueue(
     workerOptions: WorkerOptions = {
         concurrency: 1,
     }
-) {
+): { queue: Queue; worker?: Worker } {
     const queue = new Queue(name, {
         defaultJobOptions,
         connection,
     });
+    setupShutdownHook(() => queue.close());
 
     [
         "cleaned",
@@ -29,12 +32,15 @@ function initQueue(
         )
     );
 
+    if (cluster.isPrimary) return { queue };
+
     const workerFile = resolve(__dirname, "workers", name);
 
     const worker = new Worker(name, require(workerFile).default, {
         ...workerOptions,
         connection,
     });
+    setupShutdownHook(() => worker.close());
 
     [
         "active",

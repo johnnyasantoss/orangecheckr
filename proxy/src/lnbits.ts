@@ -30,7 +30,7 @@ async function getUser() {
     return response.data;
 }
 
-async function getInvoice(paymentHash: string, apiKey: string) {
+export async function getInvoice(paymentHash: string, apiKey: string) {
     const response = await api.get(`/api/v1/payments/${paymentHash}`, {
         headers: {
             "X-Api-Key": apiKey,

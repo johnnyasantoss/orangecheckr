@@ -7,6 +7,7 @@ function missingEnv(key: string): never {
 
 export const config = {
     envType: process.env["NODE_ENV"] || "development",
+    port: parseInt(process.env["PORT"] || "8080"),
     invoiceExpirySecs:
         Number(process.env["INVOICE_EXPIRY_SECS"]) ||
         missingEnv("INVOICE_EXPIRY_SECS"),

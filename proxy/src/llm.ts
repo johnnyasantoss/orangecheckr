@@ -77,7 +77,7 @@ export async function evaluatePolicy(policy: string, note: any) {
         model: "gpt-3.5-turbo",
     });
 
-    const output = chatCompletion["choices"][0]["message"]["content"];
+    const output = chatCompletion["choices"][0]?.["message"]["content"];
 
     // Parse it to JSON
     return JSON.parse(output!);

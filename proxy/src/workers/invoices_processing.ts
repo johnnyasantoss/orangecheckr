@@ -7,11 +7,10 @@ export default async function (job: SandboxedJob) {
         id: pubKey,
     } = job;
 
+    const { getInvoice } = await import("../lnbits.js");
+    const { Bot } = await import("../bot.js");
+    const bot = new Bot();
     try {
-        const { getInvoice } = require("../lnbits");
-        const Bot = require("../bot");
-        const bot = new Bot();
-
         const invoiceInfo = await getInvoice(paymentHash, apiKey);
 
         if (invoiceInfo.paid) {
@@ -24,5 +23,7 @@ export default async function (job: SandboxedJob) {
     } catch (error) {
         console.error("Failed to process invoice", error);
         throw error;
+    } finally {
+        bot.close();
     }
 }
