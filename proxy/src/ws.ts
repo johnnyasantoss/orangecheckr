@@ -191,6 +191,10 @@ export const handleWsUpgrade: ExpressUpgradeHandler = function handleWsUpgrade(
         drainMessageQueue(clientObj);
     }, 100);
 
+    socket.once("end", () => {
+        closeConnection(clientObj);
+    });
+
     relay.on("message", (data) => {
         clientObj.queueDownstream.push(data);
     });

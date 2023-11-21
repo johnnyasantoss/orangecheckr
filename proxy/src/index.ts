@@ -71,6 +71,7 @@ if (cluster.isPrimary) {
     const app = createServerHandler();
     const server = createServer(app);
 
+    // TODO: Force users to add their pubkey to the ws route
     server.on("upgrade", handleWsUpgrade);
 
     server.on("error", (err) => {
