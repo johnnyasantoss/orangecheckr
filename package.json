@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "description": "All projects related to orange proxy",
   "main": "index.js",
+  "packageManager": "pnpm@8.10.2",
+  "engineStrict": true,
+  "engines": {
+    "node": ">=16",
+    "yarn": "=0",
+    "npm": "=0"
+  },
   "private": true,
   "repository": {
     "url": ""
