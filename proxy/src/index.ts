@@ -23,9 +23,7 @@ if (cluster.isPrimary) {
             "disconnect",
             "error",
             "exit",
-            "listening",
             "message",
-            "online",
         ]) {
             worker.on(e, function () {
                 console.debug(
@@ -39,11 +37,7 @@ if (cluster.isPrimary) {
     for (const e of [
         "disconnect",
         "exit",
-        "fork",
-        "listening",
         "message",
-        "online",
-        "setup",
     ]) {
         cluster.on(e, function () {
             console.debug(`Event(${e}) on cluster`, ...arguments);
