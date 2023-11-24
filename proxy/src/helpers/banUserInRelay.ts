@@ -1,5 +1,5 @@
 import { finishEvent, relayInit } from "nostr-tools";
-import config from "../config";
+import { config } from "../config";
 const { botPrivateKey, relayUri } = config;
 
 const getNow = () => Math.floor(new Date().getTime() / 1000);

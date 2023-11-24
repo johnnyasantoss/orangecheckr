@@ -18,6 +18,14 @@ const privKey = PRIVATE_KEY || generatePrivateKey();
 const pubKey = getPublicKey(privKey);
 console.debug("Usando pub key: %s", pubKey);
 
+/**
+ * @param {Date} d
+ * @returns {number}
+ */
+const toUnixEpoch = (d) => Math.trunc(d.getTime() / 1000);
+const now = () => toUnixEpoch(new Date());
+
+const cutoffDate = new Date(2023, 10, 1);
 const relay = relayInit(RELAY_URL);
 
 let receivedAuth = false;
@@ -32,9 +40,18 @@ relay.on("auth", async (challenge) => {
         sign: (e) => finishEvent(e, privKey),
     });
 
-    const sub = relay.sub([
-        { kinds: [4], since: new Date(2023, 10, 1).getTime() / 1000 },
-    ]);
+    const post0 = finishEvent(
+        {
+            kind: 0,
+            content: "Test 1.2.3.",
+            created_at: now(),
+            tags: [],
+        },
+        privKey
+    );
+    await relay.publish(post0);
+
+    const sub = relay.sub([{ kinds: [4], since: toUnixEpoch(cutoffDate) }]);
     sub.on("count", (c) => console.info(`Received ${c} posts from relay`));
     sub.on("eose", () => relay.close());
 });

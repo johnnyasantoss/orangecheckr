@@ -1,10 +1,10 @@
 import type { Server } from "node:http";
-import { Event, validateEvent, verifySignature } from "nostr-tools";
+import { Event, Filter, validateEvent, verifySignature } from "nostr-tools";
 import { URL } from "url";
 import { v4 as uuidV4 } from "uuid";
 import WebSocket from "ws";
 import { Bot } from "./bot";
-import config from "./config";
+import { config } from "./config";
 import { getBalanceInSats } from "./lnbits";
 import { processSpam } from "./queue";
 import { setupShutdownHook } from "./shutdown";
@@ -20,21 +20,132 @@ const {
 
 const { Server: WebSocketServer } = WebSocket;
 
-export interface ClientContext {
-    closed?: boolean;
-    authChallenge?: string;
-    authenticated: boolean;
-    funded: boolean;
-    id: number;
-    queueUpstream: WebSocket.RawData[];
-    queueDownstream: WebSocket.RawData[];
-    timeout?: NodeJS.Timeout;
+export class ClientContext {
+    closed = false;
+    public readonly authChallenge: string;
+    authenticated = false;
+    funded = false;
+    public readonly queueUpstream: LazyWebsocketMessage[] = [];
+    public readonly queueDownstream: LazyWebsocketMessage[] = [];
+    private intervalRef?: NodeJS.Timeout;
 
-    getRelay(): WebSocket;
-    getWs(): WebSocket;
+    getRelay: (this: this) => WebSocket;
+    getWs: (this: this) => WebSocket;
+
+    constructor(
+        public id: number,
+        getRelay: ClientContext["getRelay"],
+        getWs: ClientContext["getWs"]
+    ) {
+        this.authChallenge = uuidV4();
+        this.getRelay = getRelay.bind(this);
+        this.getWs = getWs.bind(this);
+        this.intervalRef = setInterval(() => {
+            drainMessageQueue(this);
+        }, 100);
+    }
+
+    sendAuthChallenge() {
+        const ws = this.getWs();
+
+        console.debug(`Sending AUTH challenge on connection #${this.id}`);
+        ws.send(
+            JSON.stringify([
+                "NOTICE",
+                "restricted: we can't serve unauthenticated users. Does your client implement NIP-42?",
+            ])
+        );
+        ws.send(JSON.stringify(["AUTH", this.authChallenge]));
+
+        // setTimeout(() => {
+        //     if (this.authenticated) return;
+        //     // não deu auth em 5s
+        //     this.close("failed to authenticate");
+        // }, authTimeoutSecs * 1000).unref();
+    }
+
+    close(reason: string) {
+        if (this.closed) return;
+
+        console.debug(`Closing connection #${this.id}: ${reason}`);
+
+        clearInterval(this.intervalRef);
+        delete clients[this.id];
+
+        this.closed = true;
+        try {
+            this.getWs().close();
+        } catch (error) {
+            console.debug(
+                `Falhou ao fechar conexão com cliente #${this.id}`,
+                error
+            );
+        }
+        try {
+            this.getRelay().close();
+        } catch (error) {
+            console.debug(
+                `Falhou ao fechar conexão com relay #${this.id}`,
+                error
+            );
+        }
+    }
 }
 
-export const clients: Record<string, ClientContext> = {};
+type NostrMessage =
+    // NIP 1 & 42
+    | ["EVENT" | "AUTH", Event]
+    // NIP 1
+    | ["CLOSE", string]
+    // NIP 1 & 45
+    | ["REQ" | "COUNT", string, Filter];
+
+class LazyWebsocketMessage {
+    private _buffer!: Buffer;
+    public get buffer(): Buffer {
+        return (this._buffer ??=
+            this.rawData instanceof ArrayBuffer
+                ? Buffer.from(this.rawData)
+                : Array.isArray(this.rawData)
+                ? this.rawData.reduce((p, c) => Buffer.concat([p, c]))
+                : this.rawData);
+    }
+
+    private _event!: Event;
+    public get event(): Event {
+        if (this._event) return this._event;
+
+        const maybeEvent = this.nostrReq[1];
+
+        if (typeof maybeEvent !== "object") {
+            throw new Error(`Invalid Nostr request: ${this.nostrReq}`);
+        }
+
+        return (this._event ??= maybeEvent);
+    }
+
+    private _nostrReq!: NostrMessage;
+    public get nostrReq(): NostrMessage {
+        return (this._nostrReq ??= JSON.parse(this.buffer.toString()));
+    }
+
+    private _isValidEvent!: boolean;
+    public get isValidEvent(): boolean {
+        return (this._isValidEvent ??= validateEvent(this.event));
+    }
+
+    constructor(private rawData: WebSocket.RawData) {}
+
+    includes(included: string) {
+        return this.buffer.includes(included);
+    }
+
+    serialize(): string {
+        return this.buffer.toString();
+    }
+}
+
+const clients: Record<string, ClientContext> = {};
 
 export const bot = new Bot();
 bot.connect().catch((e) => {
@@ -42,9 +153,10 @@ bot.connect().catch((e) => {
 });
 setupShutdownHook(() => bot.close());
 
-function validateAuthEvent(event: Event, authChallenge: string) {
+function validateAuthEvent(msg: LazyWebsocketMessage, authChallenge: string) {
     try {
-        if (!validateEvent(event) || !verifySignature(event)) return false;
+        const event = msg.event;
+        if (!msg.isValidEvent || !verifySignature(event)) return false;
 
         const [, challengeTag] =
             event.tags.find(([name]) => name === "challenge") || [];
@@ -66,49 +178,6 @@ function validateAuthEvent(event: Event, authChallenge: string) {
 }
 
 let id = 1;
-function sendAuthChallenge(ws: WebSocket, clientObj: ClientContext) {
-    ws.send(
-        JSON.stringify([
-            "NOTICE",
-            "restricted: we can't serve unauthenticated users. Does your client implement NIP-42?",
-        ])
-    );
-    clientObj.authChallenge = uuidV4();
-    ws.send(JSON.stringify(["AUTH", clientObj.authChallenge]));
-
-    setTimeout(() => {
-        if (clientObj.authenticated) return;
-        // não deu auth em 5s
-        closeConnection(clientObj);
-    }, authTimeoutSecs * 1000).unref();
-}
-
-function closeConnection(clientObj: ClientContext) {
-    if (clientObj.closed) return;
-
-    console.debug(`Fechando conexão #${clientObj.id}`);
-
-    clearInterval(clientObj.timeout);
-    delete clients[clientObj.id];
-
-    clientObj.closed = true;
-    try {
-        clientObj.getWs().close();
-    } catch (error) {
-        console.debug(
-            `Falhou ao fechar conexão com cliente #${clientObj.id}`,
-            error
-        );
-    }
-    try {
-        clientObj.getRelay().close();
-    } catch (error) {
-        console.debug(
-            `Falhou ao fechar conexão com relay #${clientObj.id}`,
-            error
-        );
-    }
-}
 
 function drainMessageQueue(clientObj: ClientContext) {
     const ws = clientObj.getWs();
@@ -116,28 +185,21 @@ function drainMessageQueue(clientObj: ClientContext) {
 
     if (!clientObj.authenticated) return;
 
-    let data: WebSocket.RawData | undefined;
+    let msg: LazyWebsocketMessage | undefined;
     if (relay.readyState === WebSocket.OPEN) {
-        const reAddUpstream: WebSocket.RawData[] = [];
-        while ((data = clientObj.queueUpstream.pop())) {
-            let event: any[] | undefined = undefined;
-
+        const reAddUpstream: LazyWebsocketMessage[] = [];
+        while ((msg = clientObj.queueUpstream.pop())) {
             if (
                 !clientObj.funded &&
-                (event = JSON.parse(data.toString())) &&
-                event[0] !== "REQ" &&
-                event[0] !== "CLOSE"
+                msg.nostrReq[0] !== "REQ" &&
+                msg.nostrReq[0] !== "CLOSE"
             ) {
-                reAddUpstream.push(data);
+                reAddUpstream.push(msg);
+                continue;
             }
 
-            if (
-                clientObj.funded &&
-                (event ||
-                    ((event = JSON.parse(data.toString())) &&
-                        event[0] === "EVENT"))
-            ) {
-                const e = event[1];
+            if (clientObj.funded && msg.nostrReq[0] === "EVENT") {
+                const e = msg.event;
                 if (filterNipKind.includes(e.kind)) {
                     processSpam(e.pubkey, e.content, e.id).catch(() => {
                         console.error("Failed to process spam", event);
@@ -145,14 +207,14 @@ function drainMessageQueue(clientObj: ClientContext) {
                 }
             }
 
-            relay.send(data);
+            relay.send(msg.serialize());
         }
         clientObj.queueUpstream.push(...reAddUpstream);
     }
 
     if (ws.readyState !== WebSocket.OPEN) return;
-    while ((data = clientObj.queueDownstream.pop())) {
-        ws.send(data);
+    while ((msg = clientObj.queueDownstream.pop())) {
+        ws.send(msg.serialize());
     }
 }
 
@@ -170,44 +232,34 @@ export const handleWsUpgrade: ExpressUpgradeHandler = function handleWsUpgrade(
 ) {
     const reqId = id++;
 
-    console.debug("Recebeu upgrade do WS #%s", reqId);
+    console.debug(`New WS connection #${reqId}`);
     const wss = new WebSocketServer({ noServer: true });
     const relay = new WebSocket(relayUri);
 
     let ws: WebSocket;
-    const clientObj: ClientContext = (clients[reqId] =
-        clients[reqId] ||
-        ({
-            id: reqId,
-            authenticated: false,
-            funded: false,
-            queueUpstream: [],
-            queueDownstream: [],
-            getRelay: () => relay,
-            getWs: () => ws,
-        } as ClientContext));
-
-    clientObj.timeout = setInterval(() => {
-        drainMessageQueue(clientObj);
-    }, 100);
+    const clientContext = new ClientContext(
+        reqId,
+        () => relay,
+        () => ws
+    );
 
     socket.once("end", () => {
-        closeConnection(clientObj);
+        clientContext.close("socket closed");
     });
 
     relay.on("message", (data) => {
-        clientObj.queueDownstream.push(data);
+        clientContext.queueDownstream.push(new LazyWebsocketMessage(data));
     });
 
-    relay.on("open", function () {
+    relay.on("open", () => {
         console.log(`Upstream connection #${reqId}`);
     });
     relay.on("close", () => {
-        closeConnection(clientObj);
+        clientContext.close("upstream relay closed conn");
     });
-    relay.on("error", (err) =>
-        console.error(`Erro na upstream connection do cliente ${reqId}`, err)
-    );
+    relay.on("error", (err) => {
+        console.error(`Error in upstream connection #${reqId}`, err);
+    });
 
     wss.on("connection", function connection(_ws, req) {
         ws = _ws;
@@ -216,50 +268,42 @@ export const handleWsUpgrade: ExpressUpgradeHandler = function handleWsUpgrade(
             console.error("Erro na conexao #%s", reqId, ...arguments);
         });
         ws.on("close", () => {
-            closeConnection(clientObj);
+            clientContext.close("ws close");
         });
 
         ws.on("message", async (data) => {
-            console.log(`Recebeu mensagem ${data} na conexão #${reqId}`);
+            console.debug(`Recebeu mensagem na conexão #${reqId}`);
+            const msg = new LazyWebsocketMessage(data);
 
-            let msg;
-            // TODO(johnnyasantoss): Check if these types are correct with runtime
-            const buf =
-                data instanceof ArrayBuffer
-                    ? Buffer.from(data)
-                    : Array.isArray(data)
-                    ? data.reduce((p, c) => Buffer.concat([p, c]))
-                    : data;
             if (
-                !clientObj.authenticated &&
-                buf.includes('"AUTH"') &&
-                (msg = JSON.parse(buf.toString())) &&
-                msg[0] === "AUTH"
+                !clientContext.authenticated &&
+                msg.includes('"AUTH"') &&
+                msg.nostrReq[0] === "AUTH"
             ) {
-                const event = msg[1];
+                const event = msg.event;
 
                 console.debug(`Recebeu auth da conexão #${reqId}`, event);
 
-                if (
-                    typeof event !== "object" ||
-                    !validateAuthEvent(event, clientObj.authChallenge!)
-                ) {
+                if (!validateAuthEvent(msg, clientContext.authChallenge!)) {
                     console.warn(`Usuário invalido na conexão #${reqId}`);
-                    return closeConnection(clientObj);
+                    return clientContext.close("invalid auth event");
                 }
 
+                // reply that auth went well
+                ws.send(JSON.stringify(["OK", msg.event.id, true]));
+
                 if (event.pubkey === bot.publicKey) {
-                    clientObj.authenticated = true;
-                    clientObj.funded = true;
+                    clientContext.authenticated = true;
+                    clientContext.funded = true;
                     return;
                 }
 
-                clientObj.authenticated = true;
+                clientContext.authenticated = true;
                 console.debug(`Usuário autenticado na conexão #${reqId}`);
 
                 const balance = await getBalanceInSats(event.pubkey);
                 if (balance && balance >= collateralRequired) {
-                    clientObj.funded = true;
+                    clientContext.funded = true;
 
                     console.debug(
                         `Usuário autenticado e com colateral #${reqId}`
@@ -279,19 +323,19 @@ export const handleWsUpgrade: ExpressUpgradeHandler = function handleWsUpgrade(
                 );
 
                 if (!didSendDM) {
-                    return closeConnection(clientObj);
+                    return clientContext.close("failed to send DM");
                 }
 
                 const timeout = setTimeout(async () => {
-                    if (clientObj.funded) return;
+                    if (clientContext.funded) return;
                     const balance = await getBalanceInSats(event.pubkey);
 
                     if (balance && balance >= collateralRequired) {
-                        clientObj.funded = true;
+                        clientContext.funded = true;
                         return;
                     }
 
-                    closeConnection(clientObj);
+                    clientContext.close("failed to fund collateral");
                 }, invoiceExpirySecs * 1000);
 
                 process.once(`${event.pubkey}.paid`, (invoiceInfo) => {
@@ -299,17 +343,17 @@ export const handleWsUpgrade: ExpressUpgradeHandler = function handleWsUpgrade(
                         `Recebeu pagamento do ${event.pubkey}`,
                         invoiceInfo
                     );
-                    clientObj.funded = true;
+                    clientContext.funded = true;
                     clearTimeout(timeout);
                 });
 
                 return;
             }
 
-            clientObj.queueUpstream.push(data);
+            clientContext.queueUpstream.push(msg);
         });
 
-        sendAuthChallenge(ws, clientObj);
+        clientContext.sendAuthChallenge();
     });
 
     wss.handleUpgrade(req, socket, head, (ws) => {

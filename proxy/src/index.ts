@@ -1,6 +1,6 @@
 // init stuff
 import "websocket-polyfill";
-import config from "./config";
+import { config } from "./config";
 
 import cluster from "node:cluster";
 import { createServer } from "node:http";
@@ -19,12 +19,7 @@ if (cluster.isPrimary) {
     for (let i = 0; i < numCPUs; i++) {
         const worker = cluster.fork();
 
-        for (const e of [
-            "disconnect",
-            "error",
-            "exit",
-            "message",
-        ]) {
+        for (const e of ["disconnect", "error", "exit", "message"]) {
             worker.on(e, function () {
                 console.debug(
                     `Event(${e}) on Worker#${worker.id}(${worker.process.pid})`,
@@ -34,11 +29,7 @@ if (cluster.isPrimary) {
         }
     }
 
-    for (const e of [
-        "disconnect",
-        "exit",
-        "message",
-    ]) {
+    for (const e of ["disconnect", "exit", "message"]) {
         cluster.on(e, function () {
             console.debug(`Event(${e}) on cluster`, ...arguments);
         });
