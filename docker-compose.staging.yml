@@ -6,5 +6,8 @@ services:
     restart: always
     env_file: ./proxy/.env
     stop_signal: SIGTERM
+  redis:
+    command: redis-server --save 60 1 --maxmemory-policy noeviction
+
 networks:
   relay:
