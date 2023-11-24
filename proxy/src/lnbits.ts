@@ -1,16 +1,17 @@
 import axios from "axios";
 import { URL } from "url";
-import config from "./config";
+import { config } from "./config";
 import { processInvoice } from "./queue";
+
 const {
-    adminKey,
     collateralRequired,
     invoiceExpirySecs,
+    lnbitsMasterAccountAdminKey,
+    lnbitsMasterAccountUser,
+    lnbitsRelaySubWallet,
+    lnbitsRelaySubWalletInvoiceKey,
     lnbitsUrl,
-    managerUser,
     proxyUrl,
-    relayId,
-    relayInvoiceKey,
 } = config;
 
 // Create an Axios instance
@@ -20,13 +21,15 @@ const api = axios.create({
     headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "X-Api-Key": adminKey,
+        "X-Api-Key": lnbitsMasterAccountAdminKey,
     },
 });
 
 // Get user
 async function getUser() {
-    const response = await api.get(`/usermanager/api/v1/users/${managerUser}`);
+    const response = await api.get(
+        `/usermanager/api/v1/users/${lnbitsMasterAccountUser}`
+    );
     return response.data;
 }
 
@@ -94,9 +97,9 @@ export async function getBalanceInSats(pubKey: string) {
 // Create wallet
 async function createWallet(pubKey: string) {
     const userData = {
-        admin_id: managerUser,
+        admin_id: lnbitsMasterAccountUser,
         wallet_name: pubKey,
-        user_id: relayId,
+        user_id: lnbitsRelaySubWallet,
     };
 
     const response = await api.post("/usermanager/api/v1/wallets", userData);
@@ -112,7 +115,7 @@ export async function seizeWallet(pubKey: string) {
         collateralRequired,
         `Seizure of wallet ${pubKey}`,
         true,
-        relayInvoiceKey,
+        lnbitsRelaySubWalletInvoiceKey,
         pubKey
     );
     const invoice = seizure_invoice.payment_request;

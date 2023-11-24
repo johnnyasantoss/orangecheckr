@@ -6,7 +6,7 @@ import {
     nip04,
     relayInit,
 } from "nostr-tools";
-import config from "./config";
+import { config } from "./config";
 import { getNow } from "./helpers";
 import { fundCollateral, seizeWallet } from "./lnbits";
 const {
@@ -15,7 +15,7 @@ const {
     botPicture,
     botPrivateKey,
     collateralRequired,
-    postingPolicyUrl,
+    policyUrl,
     relayUri,
 } = config;
 
@@ -28,7 +28,7 @@ export class Bot {
         if (!relayUri) {
             throw new Error("RELAY_URI environment variable is required");
         }
-        if (!postingPolicyUrl) {
+        if (!policyUrl) {
             throw new Error(
                 "POSTING_POLICY_URL environment variable is required"
             );
@@ -79,7 +79,7 @@ export class Bot {
             invoice = await fundCollateral(pubkey);
         }
 
-        let message = `To use this relay you need to post ${collateralRequired} sats as collateral. You may lose your funds if you violate our Posting Policy (${postingPolicyUrl}).\nTo proceed, pay the following lightning invoice:\n\n${invoice}\n\nYou may withdraw your collateral at any time by replying with /withdrawCollateral <lightning invoice>.`;
+        let message = `To use this relay you need to post ${collateralRequired} sats as collateral. You may lose your funds if you violate our Posting Policy (${policyUrl}).\nTo proceed, pay the following lightning invoice:\n\n${invoice}\n\nYou may withdraw your collateral at any time by replying with /withdrawCollateral <lightning invoice>.`;
 
         await this._sendMessage(pubkey, message);
     }
@@ -103,7 +103,7 @@ export class Bot {
     }
 
     async notifyCollateralSeized(pubkey: string, eventId: string) {
-        let message = `Your collateral has been seized because nostr:${eventId} violated our Posting Policy (${postingPolicyUrl}). You may no longer use this relay.\nTo use this relay again, reply with /postCollateral.`;
+        let message = `Your collateral has been seized because nostr:${eventId} violated our Posting Policy (${policyUrl}). You may no longer use this relay.\nTo use this relay again, reply with /postCollateral.`;
 
         await this._sendMessage(pubkey, message);
     }
@@ -115,7 +115,7 @@ export class Bot {
     }
 
     async notifyPolicyViolation(pubkey: string, eventId: string) {
-        let message = `Your post nostr:${eventId} violated our Posting Policy (${postingPolicyUrl}).\nThis is just a warning, but we may seize your collateral next time.`;
+        let message = `Your post nostr:${eventId} violated our Posting Policy (${policyUrl}).\nThis is just a warning, but we may seize your collateral next time.`;
 
         await this._sendMessage(pubkey, message);
     }

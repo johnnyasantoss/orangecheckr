@@ -2,7 +2,7 @@ import { DefaultJobOptions, Queue, Worker, WorkerOptions } from "bullmq";
 import cluster from "node:cluster";
 import { resolve } from "path";
 import { setupShutdownHook } from "./shutdown";
-import config from "./config";
+import { config } from "./config";
 
 const connection = { host: config.redisHost, port: parseInt(config.redisPort) };
 

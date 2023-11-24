@@ -1,7 +1,8 @@
 import type { SandboxedJob } from "bullmq";
-import config from "../config";
+import { config } from "../config";
 import banUserInRelay from "../helpers/banUserInRelay";
 import { evaluatePolicy } from "../llm";
+
 const { policyUrl } = config;
 
 export default async function (job: SandboxedJob) {

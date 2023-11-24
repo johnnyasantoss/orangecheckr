@@ -4,7 +4,7 @@ import { URL } from "url";
 import { v4 as uuidV4 } from "uuid";
 import WebSocket from "ws";
 import { Bot } from "./bot";
-import config from "./config";
+import { config } from "./config";
 import { getBalanceInSats } from "./lnbits";
 import { processSpam } from "./queue";
 import { setupShutdownHook } from "./shutdown";
