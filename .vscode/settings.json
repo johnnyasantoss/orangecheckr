@@ -1,9 +1,14 @@
 {
-    "files.autoSave": "afterDelay",
-    "files.autoSaveDelay": 1000,
-    "[javascript]": {
-        "editor.formatOnSave": true,
-        "editor.formatOnSaveMode": "file",
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    }
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "[javascript]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
