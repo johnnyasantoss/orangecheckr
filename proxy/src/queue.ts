@@ -1,10 +1,22 @@
-import { DefaultJobOptions, Queue, Worker, WorkerOptions } from "bullmq";
+import {
+    ConnectionOptions,
+    DefaultJobOptions,
+    Queue,
+    Worker,
+    WorkerOptions,
+} from "bullmq";
 import cluster from "node:cluster";
 import { resolve } from "path";
-import { setupShutdownHook } from "./shutdown";
 import { config } from "./config";
+import { setupShutdownHook } from "./shutdown";
 
-const connection = { host: config.redisHost, port: parseInt(config.redisPort) };
+export const queues: Queue[] = [];
+
+const connection: ConnectionOptions = {
+    host: config.redisHost,
+    port: parseInt(config.redisPort),
+    password: config.redisPass!,
+};
 
 function initQueue(
     name: string,
@@ -17,6 +29,7 @@ function initQueue(
         defaultJobOptions,
         connection,
     });
+    queues.push(queue);
     setupShutdownHook(() => queue.close());
 
     [

@@ -6,6 +6,10 @@ function missingEnv(key: string): never {
     throw new Error(`Missing environment variable: ${key}`);
 }
 
+function getEnvOptional(key: string, defaultValue?: string) {
+    return process.env[key] || defaultValue;
+}
+
 function getEnv(key: string, defaultValue?: string) {
     return process.env[key] || defaultValue || missingEnv(key);
 }
@@ -32,7 +36,7 @@ export const config = {
         "BOT_ABOUT",
         "I'm a bot that helps you use Orange Checkr. Made at #SatsHack #2023"
     ),
-    botPicture: getEnv("BOT_PICTURE", ""),
+    botPicture: getEnvOptional("BOT_PICTURE", ""),
     botPrivateKey: getEnv("BOT_PRIVATE_KEY"),
 
     lnbitsMasterAccountAdminKey: getEnv("LNBITS_MASTER_ACCOUNT_ADMIN_KEY"),
@@ -47,6 +51,7 @@ export const config = {
 
     redisHost: getEnv("REDIS_HOST"),
     redisPort: getEnv("REDIS_PORT"),
+    redisPass: getEnvOptional("REDIS_PASS"),
 };
 
 export function isDev() {
