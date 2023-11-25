@@ -20,6 +20,12 @@ const {
 
 const { Server: WebSocketServer } = WebSocket;
 
+const clients: Record<string, ClientContext> = {};
+
+const bot = new Bot();
+bot.connect();
+setupShutdownHook(() => bot.close());
+
 export class ClientContext {
     closed = false;
     public readonly authChallenge: string;
@@ -144,14 +150,6 @@ class LazyWebsocketMessage {
         return this.buffer.toString();
     }
 }
-
-const clients: Record<string, ClientContext> = {};
-
-export const bot = new Bot();
-bot.connect().catch((e) => {
-    console.error("Bot failed to connect", e);
-});
-setupShutdownHook(() => bot.close());
 
 function validateAuthEvent(msg: LazyWebsocketMessage, authChallenge: string) {
     try {

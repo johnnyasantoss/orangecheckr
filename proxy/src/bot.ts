@@ -1,6 +1,7 @@
 import {
     Event,
     Relay,
+    Sub,
     finishEvent,
     getPublicKey,
     nip04,
@@ -23,6 +24,7 @@ export class Bot {
     private relay: Relay;
     private privateKey: string;
     public publicKey: string;
+    private sub?: Sub<4>;
 
     constructor() {
         if (!relayUri) {
@@ -59,17 +61,26 @@ export class Bot {
         this.publicKey = getPublicKey(this.privateKey);
     }
 
-    async connect() {
-        await this.relay.connect();
+    connect() {
+        this.relay
+            .connect()
+            .then(() => console.info("Bot connected"))
+            .catch((e) => {
+                console.error("Bot failed to connect", e);
+                setTimeout(() => this.connect(), 1000).unref();
+            });
         // await this._publishMetadata();
-        let sub = this.relay.sub([
+    }
+
+    handleDMs() {
+        this.sub = this.relay.sub([
             {
                 kinds: [4],
                 "#p": [this.publicKey],
                 since: getNow(),
             },
         ]);
-        sub.on("event", (event) => {
+        this.sub.on("event", (event) => {
             this._handleEvent(event);
         });
     }
@@ -194,6 +205,7 @@ If you want to withdraw collateral, reply with /withdrawCollateral <lightning in
     }
 
     close() {
+        this.sub?.unsub();
         this.relay.close();
     }
 }

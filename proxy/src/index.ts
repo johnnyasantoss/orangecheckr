@@ -5,6 +5,7 @@ import { config } from "./config";
 import cluster from "node:cluster";
 import { createServer } from "node:http";
 import { availableParallelism, cpus } from "node:os";
+import { Bot } from "./bot";
 import { createServerHandler } from "./server";
 import { setupShutdownHook, shutdown } from "./shutdown";
 import { handleWsUpgrade } from "./ws";
@@ -14,6 +15,11 @@ const numCPUs =
     (availableParallelism ? availableParallelism() : cpus().length);
 
 if (cluster.isPrimary) {
+    const bot = new Bot();
+    bot.connect();
+    bot.handleDMs();
+    setupShutdownHook(() => bot.close());
+
     console.debug(`Primary#${process.pid} is running`);
 
     for (let i = 0; i < numCPUs; i++) {
