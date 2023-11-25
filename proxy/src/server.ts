@@ -1,6 +1,9 @@
+import { Queue } from "bullmq";
 import cors from "cors";
 import express, { RequestHandler, Router } from "express";
-import { isDev } from "./config";
+import { hostname } from "os";
+import { config, isDev } from "./config";
+import { queues } from "./queue";
 import { reports } from "./reports";
 
 export function reqCatchAsync(fn: RequestHandler): RequestHandler {
@@ -54,6 +57,29 @@ export function createServerHandler(): Express.Application {
 
     if (isDev()) {
         app.get("/info", (req, res) => res.json({ pid: process.pid }));
+
+        const Arena = require("bull-arena");
+        const hostId = hostname();
+        const arena = Arena(
+            {
+                BullMQ: Queue,
+                queues: queues.map((q) => ({
+                    type: "bullmq",
+                    name: q.name,
+                    hostId,
+                    redis: {
+                        host: config.redisHost,
+                        password: config.redisPass,
+                        port: config.redisPort,
+                    },
+                })),
+            },
+            {
+                disableListen: true,
+                useCdn: true,
+            }
+        );
+        app.use("/queues", arena);
     }
 
     app.get("/reports", reports());
