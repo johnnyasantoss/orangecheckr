@@ -6,3 +6,5 @@
 
 # Secrets
 **/.env
+node_modules/
+.pnpm-store/
